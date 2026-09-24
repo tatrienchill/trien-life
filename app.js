@@ -1,457 +1,66 @@
-const SUPABASE_URL = "https://sfiinqqhyugnkbbgvyyu.supabase.co";
-const SUPABASE_KEY = "sb_publishable_hnJscI34tydXdmzeMY1tHw_hlhNnIT3";
+const KEY='trienLifeV2';
 
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-);
-
-const KEY = 'trienLifeV2';
-
-const defaultData = {
-    wallets: [
+const defaultData={
+    wallets:[
         {id:1,name:'Ví ngân hàng',sub:'Vietcombank',balance:5200000,icon:'🏦',cls:'bank'},
         {id:2,name:'Tiền mặt',sub:'Tiền mặt',balance:850000,icon:'▣',cls:'cash'},
         {id:3,name:'MoMo',sub:'Ví điện tử',balance:320000,icon:'mo',cls:'momo'},
         {id:4,name:'Thẻ tín dụng',sub:'Visa',balance:1080000,icon:'▤',cls:'cardblue'}
     ],
-
-    transactions: [
+    transactions:[
         {id:1,type:'expense',name:'Ăn trưa',cat:'Ăn uống',wallet:2,amount:50000,date:'24/09/2026',time:'12:30'},
         {id:2,type:'expense',name:'Học phí',cat:'Học tập',wallet:1,amount:200000,date:'24/09/2026',time:'09:15'},
         {id:3,type:'income',name:'Lương',cat:'Thu nhập',wallet:1,amount:4000000,date:'23/09/2026',time:'08:00'},
         {id:4,type:'expense',name:'Mua sách',cat:'Học tập',wallet:3,amount:120000,date:'18/09/2026',time:'16:20'},
         {id:5,type:'expense',name:'Đi cafe',cat:'Giải trí',wallet:2,amount:85000,date:'16/09/2026',time:'14:10'}
     ],
-
-    tasks: [
+    tasks:[
         {id:1,name:'Học DSA',time:'13:30',date:'24/09/2026',done:true,cls:'green'},
         {id:2,name:'Làm bài C++',time:'15:00',date:'24/09/2026',done:false,cls:'blue'},
         {id:3,name:'Tập thể dục',time:'18:30',date:'24/09/2026',done:false,cls:'pink'},
         {id:4,name:'Đọc sách',time:'20:00',date:'24/09/2026',done:false,cls:'purple'}
     ],
-
-    settings: {
+    settings:{
         hide:false,
         notify:true,
         dark:false
     }
 };
 
-let data =
-    JSON.parse(localStorage.getItem(KEY) || 'null')
-    || structuredClone(defaultData);
-    async function syncWalletsToSupabase() {
-    const { data: userData, error: userError } =
-        await supabaseClient.auth.getUser();
+let data=JSON.parse(localStorage.getItem(KEY)||'null')||structuredClone(defaultData);
 
-    if (userError || !userData.user) {
-        console.log("Chưa đăng nhập");
-        return;
-    }
+let page='home';
 
-    const userId = userData.user.id;
+let timerSec=1500;
+let timerTotal=1500;
+let timerInt=null;
 
-    const { data: wallets, error } =
-        await supabaseClient
-            .from('wallets')
-            .select('*')
-            .eq('user_id', userId);
+let taskTab='work';
+let moneyVisible=true;
 
-    if (error) {
-        console.error("Lỗi tải ví:", error);
-        return;
-    }
+let scheduleTab='work';
+let statsTab='category';
+let financeTab='overview';
+let selectedDate=24;
 
-    if (wallets.length === 0) {
-        const rows = data.wallets.map(w => ({
-            user_id: userId,
-            name: w.name,
-            type: w.sub,
-            balance: w.balance,
-            icon: w.icon
-        }));
-
-        const { error: insertError } =
-            await supabaseClient
-                .from('wallets')
-                .insert(rows);
-
-        if (insertError) {
-            console.error(
-                "Lỗi tạo ví:",
-                insertError
-            );
-            return;
-        }
-
-        console.log("Đã đồng bộ ví lên Supabase");
-    } else {
-        console.log(
-            "Đã có",
-            wallets.length,
-            "ví trên Supabase"
-        );
-    }
-}
-syncWalletsToSupabase();
-let page = 'home';
-
-let timerSec = 1500;
-let timerTotal = 1500;
-let timerInt = null;
-
-let taskTab = 'work';
-let moneyVisible = true;
-
-let scheduleTab = 'work';
-let statsTab = 'category';
-let financeTab = 'overview';
-let selectedDate = 24;
-
-let timerMode = 'countdown';
-let reminderCheckInt = null;
-
-
-/* =========================
-   SUPABASE AUTH
-========================= */
-
-async function checkSupabase() {
-
-    const {
-        data: sessionData,
-        error
-    } = await supabaseClient.auth.getSession();
-
-    if(error) {
-        console.error("Supabase lỗi:", error);
-        return null;
-    }
-
-    if(sessionData.session) {
-
-        console.log(
-            "Supabase đã kết nối - User:",
-            sessionData.session.user.email
-        );
-
-        return sessionData.session;
-
-    } else {
-
-        console.log(
-            "Supabase đã kết nối - Chưa đăng nhập"
-        );
-
-        return null;
-    }
-}
-
-
-async function login(email,password) {
-
-    const {
-        data,
-        error
-    } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-    });
-
-    if(error) {
-
-        console.error(
-            "Login error:",
-            error
-        );
-
-        toast(
-            'Đăng nhập thất bại: ' +
-            error.message
-        );
-
-        return false;
-    }
-
-    console.log(
-        "Đăng nhập thành công:",
-        data.user
-    );
-
-    toast('Đăng nhập thành công');
-
-    return true;
-}
-
-
-async function getCurrentUser() {
-
-    const {
-        data: { user },
-        error
-    } = await supabaseClient.auth.getUser();
-
-    if(error) {
-
-        console.error(
-            "Lỗi lấy user:",
-            error
-        );
-
-        return null;
-    }
-
-    if(user) {
-
-        console.log(
-            "Đang đăng nhập:",
-            user.email
-        );
-
-    } else {
-
-        console.log(
-            "Chưa đăng nhập"
-        );
-    }
-
-    return user;
-}
-
-
-async function logoutSupabase() {
-
-    const {
-        error
-    } = await supabaseClient.auth.signOut();
-
-    if(error) {
-
-        console.error(
-            "Đăng xuất lỗi:",
-            error
-        );
-
-        toast(
-            "Đăng xuất thất bại"
-        );
-
-        return;
-    }
-
-    toast(
-        "Đã đăng xuất"
-    );
-
-    page = 'home';
-
-    setTimeout(() => {
-        render();
-    },300);
-}
-
-
-/* =========================
-   LOGIN PAGE
-========================= */
-
-function loginPage() {
-
-    return `
-    <div class="login-screen">
-
-        <div class="login-logo">
-
-            <div class="login-logo-icon">
-                T
-            </div>
-
-            <h1>
-                Triển Life
-            </h1>
-
-            <p>
-                Kỷ luật hơn, tự do ngày mai
-            </p>
-
-        </div>
-
-
-        <div class="login-box">
-
-            <h2>
-                Đăng nhập
-            </h2>
-
-            <p>
-                Đăng nhập để đồng bộ dữ liệu của bạn
-            </p>
-
-
-            <div class="field">
-
-                <label>
-                    Email
-                </label>
-
-                <input
-                    id="loginEmail"
-                    class="input"
-                    type="email"
-                    autocomplete="email"
-                    placeholder="Nhập email">
-
-            </div>
-
-
-            <div class="field">
-
-                <label>
-                    Mật khẩu
-                </label>
-
-                <input
-                    id="loginPassword"
-                    class="input"
-                    type="password"
-                    autocomplete="current-password"
-                    placeholder="Nhập mật khẩu"
-                    onkeydown="if(event.key==='Enter') handleLogin()">
-
-            </div>
-
-
-            <button
-                class="primary full"
-                onclick="handleLogin()">
-
-                Đăng nhập
-
-            </button>
-
-        </div>
-
-    </div>`;
-}
-
-
-async function handleLogin() {
-
-    const emailInput =
-        document.getElementById('loginEmail');
-
-    const passwordInput =
-        document.getElementById('loginPassword');
-
-
-    const email =
-        emailInput
-        ? emailInput.value.trim()
-        : '';
-
-
-    const password =
-        passwordInput
-        ? passwordInput.value
-        : '';
-
-
-    if(!email) {
-
-        toast(
-            'Nhập email'
-        );
-
-        return;
-    }
-
-
-    if(!password) {
-
-        toast(
-            'Nhập mật khẩu'
-        );
-
-        return;
-    }
-
-
-    const ok =
-        await login(
-            email,
-            password
-        );
-
-
-    if(ok) {
-
-        page = 'home';
-
-        render();
-    }
-}
-
-
-/* =========================
-   AUTH STATE
-========================= */
-
-supabaseClient.auth.onAuthStateChange(
-    (event,session) => {
-
-        console.log(
-            "Auth event:",
-            event
-        );
-
-
-        if(session) {
-
-            console.log(
-                "User hiện tại:",
-                session.user.email
-            );
-
-        } else {
-
-            console.log(
-                "Không có user đăng nhập"
-            );
-        }
-
-
-        if(
-            event === 'SIGNED_IN' ||
-            event === 'SIGNED_OUT'
-        ) {
-
-            render();
-        }
-
-    }
-);
+let timerMode='countdown';
+let reminderCheckInt=null;
 
 
 /* =========================
    LOCAL DATA
 ========================= */
 
-const money = n =>
-    new Intl.NumberFormat('vi-VN').format(n) + 'đ';
+const money=n=>
+    new Intl.NumberFormat('vi-VN').format(n)+'đ';
 
+const save=()=>
+    localStorage.setItem(KEY,JSON.stringify(data));
 
-const save = () =>
-    localStorage.setItem(
-        KEY,
-        JSON.stringify(data)
-    );
-
-
-const esc = s =>
+const esc=s=>
     String(s).replace(
         /[&<>"']/g,
-        m => ({
+        m=>({
             '&':'&amp;',
             '<':'&lt;',
             '>':'&gt;',
@@ -460,71 +69,42 @@ const esc = s =>
         }[m])
     );
 
-
-function total() {
-
+function total(){
     return data.wallets.reduce(
-        (s,w) =>
-            s + Number(w.balance || 0),
+        (s,w)=>s+Number(w.balance||0),
         0
     );
 }
 
-
-function wallet(id) {
-
-    return data.wallets.find(
-        w => w.id == id
-    );
+function wallet(id){
+    return data.wallets.find(w=>w.id==id);
 }
 
-
-function dateKey(
-    day,
-    month=9,
-    year=2026
-) {
-
+function dateKey(day,month=9,year=2026){
     return `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
 }
 
-
-function tasksForDate(day) {
-
+function tasksForDate(day){
     return data.tasks.filter(
-        t =>
-            (t.date || '24/09/2026')
-            === dateKey(day)
+        t=>(t.date||'24/09/2026')===dateKey(day)
     );
 }
 
+function ensureTaskDates(){
+    let changed=false;
 
-function ensureTaskDates() {
-
-    let changed = false;
-
-    data.tasks.forEach(t => {
-
-        if(!t.date) {
-
-            t.date =
-                '24/09/2026';
-
-            changed = true;
+    data.tasks.forEach(t=>{
+        if(!t.date){
+            t.date='24/09/2026';
+            changed=true;
         }
-
     });
 
-    if(changed)
-        save();
+    if(changed) save();
 }
 
-
-function fmt(v) {
-
-    return moneyVisible
-        ? money(v)
-        : '••••••';
+function fmt(v){
+    return moneyVisible?money(v):'••••••';
 }
 
 
@@ -532,9 +112,9 @@ function fmt(v) {
    NAVIGATION
 ========================= */
 
-function navIcon(name) {
+function navIcon(name){
 
-    const icons = {
+    const icons={
 
         home:
         '<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5M9.5 21v-6h5v6"/></svg>',
@@ -552,13 +132,12 @@ function navIcon(name) {
         '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21.6h-2v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.56-1.03H7.6v-2h.24A1.7 1.7 0 0 0 9.4 11a1.7 1.7 0 0 0-.34-1.88L9 9.06l1.42-1.42.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.56 1.03h.24v2h-.24A1.7 1.7 0 0 0 19.4 15Z"/></svg>'
     };
 
-    return icons[name] || '';
+    return icons[name]||'';
 }
 
+function nav(){
 
-function nav() {
-
-    let items = [
+    let items=[
         ['home','Trang chủ'],
         ['schedule','Lịch trình'],
         ['finance','Tài chính'],
@@ -566,35 +145,20 @@ function nav() {
         ['settings','Cài đặt']
     ];
 
-
-    document.getElementById(
-        'bottomNav'
-    ).innerHTML =
-
-        items.map(x =>
-
-            `<button
-                class="${page===x[0]?'active':''}"
+    document.getElementById('bottomNav').innerHTML=
+        items.map(x=>
+            `<button class="${page===x[0]?'active':''}"
                 aria-label="${x[1]}"
                 onclick="go('${x[0]}')">
-
-                <span class="nav-icon">
-                    ${navIcon(x[0])}
-                </span>
-
-                <small>
-                    ${x[1]}
-                </small>
-
+                <span class="nav-icon">${navIcon(x[0])}</span>
+                <small>${x[1]}</small>
             </button>`
-
         ).join('');
 }
 
+function go(p){
 
-function go(p) {
-
-    page = p;
+    page=p;
 
     render();
 
@@ -610,7 +174,6 @@ function go(p) {
 ========================= */
 
 function render() {
-
     ensureTaskDates();
 
     const screen =
@@ -619,86 +182,29 @@ function render() {
     const bottomNav =
         document.getElementById('bottomNav');
 
-
     if(!screen || !bottomNav)
         return;
 
+    nav();
 
-    supabaseClient.auth
-        .getSession()
-        .then(({data:sessionData,error}) => {
+    screen.innerHTML =
+        page === 'home'
+        ? home()
+        : page === 'schedule'
+        ? schedule()
+        : page === 'timer'
+        ? timerPage()
+        : page === 'finance'
+        ? finance()
+        : page === 'settings'
+        ? settings()
+        : '';
 
-            if(error) {
-
-                console.error(
-                    "Lỗi kiểm tra session:",
-                    error
-                );
-
-                return;
-            }
-
-
-            if(!sessionData.session) {
-
-                bottomNav.innerHTML = '';
-
-                screen.innerHTML =
-                    loginPage();
-
-                document.body.classList.remove(
-                    'dark'
-                );
-
-                return;
-            }
-
-
-            nav();
-
-
-            screen.innerHTML =
-
-                page === 'home'
-                ? home()
-
-                : page === 'schedule'
-                ? schedule()
-
-                : page === 'timer'
-                ? timerPage()
-
-                : page === 'finance'
-                ? finance()
-
-                : page === 'settings'
-                ? settings()
-
-                : '';
-
-
-            if(data.settings.dark) {
-
-                document.body.classList.add(
-                    'dark'
-                );
-
-            } else {
-
-                document.body.classList.remove(
-                    'dark'
-                );
-            }
-
-        })
-        .catch(error => {
-
-            console.error(
-                "Render lỗi:",
-                error
-            );
-
-        });
+    if(data.settings.dark) {
+        document.body.classList.add('dark');
+    } else {
+        document.body.classList.remove('dark');
+    }
 }
 
 
@@ -706,148 +212,69 @@ function render() {
    HOME
 ========================= */
 
-function home() {
+function home(){
 
     return `
     <div class="screen">
 
         <div class="hero">
-
-            <h1>
-                Triển Life
-            </h1>
-
-            <p>
-                Kỷ luật hơn, tự do ngày mai
-            </p>
-
+            <h1>Triển Life</h1>
+            <p>Kỷ luật hơn, tự do ngày mai</p>
         </div>
 
-
         <div class="hello">
-
-            <b>
-                Xin chào, Triển 👋
-            </b>
-
-            <small>
-                Thứ Năm, 24 tháng 9, 2026
-            </small>
+            <b>Xin chào, Triển 👋</b>
+            <small>Thứ Năm, 24 tháng 9, 2026</small>
 
             <div class="quote">
                 “Mỗi ngày là một cơ hội để tốt hơn so với chính mình.”
             </div>
-
         </div>
-
 
         <div class="section-head">
-
-            <h3>
-                Hôm nay (4)
-            </h3>
-
-            <button onclick="go('schedule')">
-                Xem tất cả ›
-            </button>
-
+            <h3>Hôm nay (4)</h3>
+            <button onclick="go('schedule')">Xem tất cả ›</button>
         </div>
 
-
-        ${data.tasks.map(
-            t => taskHTML(t)
-        ).join('')}
-
+        ${data.tasks.map(t=>taskHTML(t)).join('')}
 
         <div class="section-head">
-
-            <h3>
-                Hẹn giờ
-            </h3>
-
+            <h3>Hẹn giờ</h3>
         </div>
-
 
         <div class="mini-timer">
 
-            <div class="timer-icon">
-                ◷
-            </div>
+            <div class="timer-icon">◷</div>
 
             <div class="grow">
-
-                <b>
-                    Phiên tập trung 25 phút
-                </b>
-
-                <small>
-                    ${timerInt?'Đang chạy':'Sẵn sàng'}
-                </small>
-
+                <b>Phiên tập trung 25 phút</b>
+                <small>${timerInt?'Đang chạy':'Sẵn sàng'}</small>
             </div>
 
-            <button
-                class="play"
-                onclick="go('timer')">
-
-                ▶
-
-            </button>
+            <button class="play" onclick="go('timer')">▶</button>
 
         </div>
-
 
         <div class="section-head">
-
-            <h3>
-                Tài chính tháng này
-            </h3>
-
-            <button onclick="go('finance')">
-                Xem chi tiết ›
-            </button>
-
+            <h3>Tài chính tháng này</h3>
+            <button onclick="go('finance')">Xem chi tiết ›</button>
         </div>
-
 
         <div class="finance-summary">
 
             <div>
-
-                <small>
-                    Thu nhập
-                </small>
-
-                <b class="green-t">
-                    4.000.000đ
-                </b>
-
+                <small>Thu nhập</small>
+                <b class="green-t">4.000.000đ</b>
             </div>
 
-
             <div>
-
-                <small>
-                    Chi tiêu
-                </small>
-
-                <b class="red-t">
-                    1.250.000đ
-                </b>
-
+                <small>Chi tiêu</small>
+                <b class="red-t">1.250.000đ</b>
             </div>
 
-
             <div>
-
-                <small>
-                    Số dư
-                </small>
-
-                <b>
-                    ${money(total())}
-                </b>
-
+                <small>Số dư</small>
+                <b>${money(total())}</b>
             </div>
 
         </div>
@@ -855,33 +282,21 @@ function home() {
     </div>`;
 }
 
-
-function taskHTML(t) {
+function taskHTML(t){
 
     return `
-    <div
-        class="task ${t.cls}"
-        onclick="toggleTask(${t.id})">
+    <div class="task ${t.cls}" onclick="toggleTask(${t.id})">
 
         <span class="check ${t.done?'done':''}">
             ${t.done?'✓':''}
         </span>
 
         <div>
-
-            <div class="name">
-                ${esc(t.name)}
-            </div>
-
-            <div class="time">
-                ${t.time}
-            </div>
-
+            <div class="name">${esc(t.name)}</div>
+            <div class="time">${t.time}</div>
         </div>
 
-        <span class="dots">
-            ⋮
-        </span>
+        <span class="dots">⋮</span>
 
     </div>`;
 }
@@ -891,90 +306,70 @@ function taskHTML(t) {
    SCHEDULE
 ========================= */
 
-function schedule() {
+function schedule(){
 
     return `
     <div class="screen">
 
         <div class="top">
 
-            <h1>
-                Lịch trình
-            </h1>
+            <h1>Lịch trình</h1>
 
             <button
                 class="primary"
                 style="width:30px;height:30px;padding:0;border-radius:50%"
                 onclick="taskModal()">
-
                 ＋
-
             </button>
 
         </div>
-
 
         <div class="tabs">
 
             <button
                 class="${scheduleTab==='work'?'active':''}"
                 onclick="setScheduleTab('work')">
-
                 Công việc
-
             </button>
-
 
             <button
                 class="${scheduleTab==='day'?'active':''}"
                 onclick="setScheduleTab('day')">
-
                 Lịch ngày
-
             </button>
-
 
             <button
                 class="${scheduleTab==='reminder'?'active':''}"
                 onclick="setScheduleTab('reminder')">
-
                 Nhắc việc
-
             </button>
 
         </div>
 
-
         ${
             scheduleTab==='work'
-            ? scheduleWork()
-
-            : scheduleTab==='day'
-            ? scheduleDay()
-
-            : scheduleReminder()
+            ?scheduleWork()
+            :scheduleTab==='day'
+            ?scheduleDay()
+            :scheduleReminder()
         }
 
     </div>`;
 }
 
+function setScheduleTab(tab){
 
-function setScheduleTab(tab) {
-
-    scheduleTab = tab;
+    scheduleTab=tab;
 
     render();
 }
 
-
-function scheduleWork() {
+function scheduleWork(){
 
     return `
     <div class="search">
 
-        <span>
-            ⌕
-        </span>
+        <span>⌕</span>
 
         <input
             id="searchTask"
@@ -983,125 +378,81 @@ function scheduleWork() {
 
     </div>
 
-
     <div class="date-strip">
 
         ${
             ['T2','T3','T4','T5','T6','T7','CN']
-                .map((d,i) =>
-                    `<button
-                        class="day ${i===2?'active':''}"
-                        onclick="selectScheduleDate(${22+i})">
+            .map((d,i)=>
+                `<button
+                    class="day ${i===2?'active':''}"
+                    onclick="selectScheduleDate(${22+i})">
 
-                        ${d}
+                    ${d}
 
-                        <b>
-                            ${22+i}
-                        </b>
+                    <b>${22+i}</b>
 
-                    </button>`
-                )
-                .join('')
+                </button>`
+            ).join('')
         }
 
     </div>
 
-
     <div class="section-head">
-
-        <h3>
-            Hôm nay (${data.tasks.length})
-        </h3>
-
+        <h3>Hôm nay (${data.tasks.length})</h3>
     </div>
-
 
     <div id="taskList">
-
-        ${data.tasks.map(
-            taskHTML
-        ).join('')}
-
+        ${data.tasks.map(taskHTML).join('')}
     </div>
 
-
-    <button
-        class="primary full"
-        onclick="taskModal()">
-
+    <button class="primary full" onclick="taskModal()">
         ＋ Thêm công việc
-
     </button>`;
 }
 
+function scheduleDay(){
 
-function scheduleDay() {
-
-    let list =
-        tasksForDate(
-            selectedDate
-        );
-
+    let list=tasksForDate(selectedDate);
 
     return `
     <div class="page-calendar">
 
         <div class="calendar-head">
 
-            <button onclick="changeMonth(-1)">
-                ‹
-            </button>
+            <button onclick="changeMonth(-1)">‹</button>
 
-            <b>
-                Tháng 9, 2026
-            </b>
+            <b>Tháng 9, 2026</b>
 
-            <button onclick="changeMonth(1)">
-                ›
-            </button>
+            <button onclick="changeMonth(1)">›</button>
 
         </div>
-
 
         <div class="calendar-grid">
 
             ${
                 ['T2','T3','T4','T5','T6','T7','CN']
-                    .map(
-                        x =>
-                        `<span>${x}</span>`
-                    )
-                    .join('')
+                .map(x=>`<span>${x}</span>`).join('')
             }
 
-
             ${
-                Array.from(
-                    {length:35},
-                    (_,i) => {
+                Array.from({length:35},(_,i)=>{
 
-                        let day = i-1;
+                    let day=i-1;
 
-                        if(
-                            day<1 ||
-                            day>30
-                        )
-                            return '<span></span>';
+                    if(day<1||day>30)
+                        return '<span></span>';
 
-                        return `
-                        <button
-                            onclick="selectScheduleDate(${day})"
-                            class="${day===selectedDate?'today':''}">
+                    return `
+                    <button
+                        onclick="selectScheduleDate(${day})"
+                        class="${day===selectedDate?'today':''}">
+                        ${day}
+                    </button>`;
 
-                            ${day}
-
-                        </button>`;
-                    }
-                ).join('')
+                }).join('')
             }
 
         </div>
-
 
         <div class="timeline">
 
@@ -1111,56 +462,49 @@ function scheduleDay() {
 
                     ${
                         selectedDate===24
-                        ? 'Hôm nay, '
-                        : ''
+                        ?'Hôm nay, '
+                        :''
                     }
 
                     ${String(selectedDate).padStart(2,'0')}/09/2026
 
                 </b>
 
-
                 <small
                     style="display:block;color:#8a96aa;font-size:9px;margin-top:4px">
 
                     ${
                         list.length
-                        ? list.length+' sự kiện'
-                        : 'Không có sự kiện'
+                        ?list.length+' sự kiện'
+                        :'Không có sự kiện'
                     }
 
                 </small>
 
             </div>
 
-
             ${
                 list.map(
-                    t =>
+                    t=>
                     `<button
                         class="timeline-row"
                         onclick="editTask(${t.id})">
 
                         <span class="dot ${
                             t.cls==='blue'
-                            ? 'blue'
-                            : t.cls==='pink'
-                            ? 'pink'
-                            : t.cls==='purple'
-                            ? 'purple'
-                            : ''
+                            ?'blue'
+                            :t.cls==='pink'
+                            ?'pink'
+                            :t.cls==='purple'
+                            ?'purple'
+                            :''
                         }"></span>
 
-                        <span
-                            style="width:42px;color:#6e7a8d">
-
+                        <span style="width:42px;color:#6e7a8d">
                             ${t.time}
-
                         </span>
 
-                        <b>
-                            ${esc(t.name)}
-                        </b>
+                        <b>${esc(t.name)}</b>
 
                     </button>`
                 ).join('')
@@ -1175,8 +519,7 @@ function scheduleDay() {
     </div>`;
 }
 
-
-function scheduleReminder() {
+function scheduleReminder(){
 
     return `
     <div class="reminder-box">
@@ -1184,33 +527,22 @@ function scheduleReminder() {
         <div class="reminder-head">
 
             <div>
-
-                <b>
-                    Nhắc việc
-                </b>
-
-                <small>
-                    Những việc cần nhắc bạn trong ngày
-                </small>
-
+                <b>Nhắc việc</b>
+                <small>Những việc cần nhắc bạn trong ngày</small>
             </div>
-
 
             <button
                 class="primary"
                 style="width:auto;padding:8px 14px"
                 onclick="reminderModal()">
-
                 ＋ Thêm
-
             </button>
 
         </div>
 
-
         ${
             data.tasks.map(
-                t =>
+                t=>
                 `<div class="reminder-row">
 
                     <div
@@ -1221,26 +553,15 @@ function scheduleReminder() {
 
                     </div>
 
-
                     <div class="grow">
 
-                        <b>
-                            ${esc(t.name)}
-                        </b>
+                        <b>${esc(t.name)}</b>
 
-                        <small>
-                            Nhắc lúc ${t.time}
-                        </small>
+                        <small>Nhắc lúc ${t.time}</small>
 
                     </div>
 
-
-                    <button
-                        onclick="editTask(${t.id})">
-
-                        ⋮
-
-                    </button>
+                    <button onclick="editTask(${t.id})">⋮</button>
 
                 </div>`
             ).join('')
@@ -1253,14 +574,10 @@ function scheduleReminder() {
     </div>`;
 }
 
+function selectScheduleDate(d){
 
-function selectScheduleDate(d) {
-
-    selectedDate =
-        Number(d);
-
-    scheduleTab =
-        'day';
+    selectedDate=Number(d);
+    scheduleTab='day';
 
     render();
 
@@ -1269,52 +586,35 @@ function selectScheduleDate(d) {
     );
 }
 
+function changeMonth(delta){
 
-function changeMonth(delta) {
-
-    toast(
-        'Bản lịch tháng hiện tại là 09/2026'
-    );
+    toast('Bản lịch tháng hiện tại là 09/2026');
 }
 
-
-function reminderModal() {
+function reminderModal(){
 
     taskModal();
 }
 
+function editTask(id){
 
-function editTask(id) {
+    let t=data.tasks.find(x=>x.id===id);
 
-    let t =
-        data.tasks.find(
-            x => x.id === id
-        );
-
-    if(!t)
-        return;
-
+    if(!t) return;
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Sửa công việc
-            </h3>
+            <h3>Sửa công việc</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Tên công việc
-            </label>
+            <label>Tên công việc</label>
 
             <input
                 id="editTaskName"
@@ -1323,30 +623,21 @@ function editTask(id) {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Ngày
-            </label>
+            <label>Ngày</label>
 
             <input
                 id="editTaskDate"
                 type="date"
                 class="input"
-                value="${(t.date||'24/09/2026')
-                    .split('/')
-                    .reverse()
-                    .join('-')}">
+                value="${(t.date||'24/09/2026').split('/').reverse().join('-')}">
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Thời gian
-            </label>
+            <label>Thời gian</label>
 
             <input
                 id="editTaskTime"
@@ -1356,185 +647,120 @@ function editTask(id) {
 
         </div>
 
-
         <button
             class="primary full"
             onclick="updateTask(${id})">
-
             Lưu thay đổi
-
         </button>
-
 
         <button
             class="danger full"
             onclick="removeTask(${id})">
-
             Xóa công việc
-
         </button>
 
     `);
 }
 
+function updateTask(id){
 
-function updateTask(id) {
+    let t=data.tasks.find(x=>x.id===id);
 
-    let t =
-        data.tasks.find(
-            x => x.id === id
-        );
+    if(!t) return;
 
-    if(!t)
-        return;
+    t.name=
+        document.getElementById('editTaskName').value.trim()
+        ||t.name;
 
+    t.time=
+        document.getElementById('editTaskTime').value
+        ||t.time;
 
-    t.name =
-        document
-            .getElementById('editTaskName')
-            .value.trim()
-        || t.name;
+    let d=document.getElementById('editTaskDate').value;
 
+    if(d){
 
-    t.time =
-        document
-            .getElementById('editTaskTime')
-            .value
-        || t.time;
+        let [y,m,day]=d.split('-');
 
-
-    let d =
-        document
-            .getElementById('editTaskDate')
-            .value;
-
-
-    if(d) {
-
-        let [
-            y,
-            m,
-            day
-        ] = d.split('-');
-
-        t.date =
-            `${day}/${m}/${y}`;
+        t.date=`${day}/${m}/${y}`;
     }
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã cập nhật công việc'
-    );
+    toast('Đã cập nhật công việc');
 }
 
+function removeTask(id){
 
-function removeTask(id) {
-
-    if(!confirm(
-        'Xóa công việc này?'
-    ))
+    if(!confirm('Xóa công việc này?'))
         return;
 
-
-    data.tasks =
-        data.tasks.filter(
-            t => t.id !== id
-        );
-
+    data.tasks=data.tasks.filter(
+        t=>t.id!==id
+    );
 
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã xóa công việc'
-    );
+    toast('Đã xóa công việc');
 }
 
+function filterTasks(){
 
-function filterTasks() {
-
-    let q =
+    let q=
         document
-            .getElementById('searchTask')
-            .value
-            .toLowerCase();
-
+        .getElementById('searchTask')
+        .value
+        .toLowerCase();
 
     document
         .getElementById('taskList')
-        .innerHTML =
+        .innerHTML=
 
         data.tasks
-            .filter(
-                t =>
-                    t.name
-                        .toLowerCase()
-                        .includes(q)
-            )
-            .map(taskHTML)
-            .join('');
+        .filter(
+            t=>t.name.toLowerCase().includes(q)
+        )
+        .map(taskHTML)
+        .join('');
 }
 
+function toggleTask(id){
 
-function toggleTask(id) {
+    let t=data.tasks.find(x=>x.id===id);
 
-    let t =
-        data.tasks.find(
-            x => x.id === id
-        );
+    if(!t) return;
 
-    if(!t)
-        return;
-
-
-    t.done =
-        !t.done;
-
+    t.done=!t.done;
 
     save();
-
     render();
-
 
     toast(
         t.done
-        ? 'Đã hoàn thành'
-        : 'Đã bỏ hoàn thành'
+        ?'Đã hoàn thành'
+        :'Đã bỏ hoàn thành'
     );
 }
 
-
-function taskModal() {
+function taskModal(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Thêm công việc
-            </h3>
+            <h3>Thêm công việc</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Tên công việc
-            </label>
+            <label>Tên công việc</label>
 
             <input
                 id="taskName"
@@ -1543,12 +769,9 @@ function taskModal() {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Thời gian
-            </label>
+            <label>Thời gian</label>
 
             <input
                 id="taskTime"
@@ -1557,7 +780,6 @@ function taskModal() {
                 value="15:00">
 
         </div>
-
 
         <button
             class="primary full"
@@ -1571,58 +793,40 @@ function taskModal() {
     `);
 }
 
+function addTask(){
 
-function addTask() {
-
-    let n =
+    let n=
         document
-            .getElementById('taskName')
-            .value
-            .trim();
-
+        .getElementById('taskName')
+        .value
+        .trim();
 
     if(!n)
-        return toast(
-            'Nhập tên công việc'
-        );
-
+        return toast('Nhập tên công việc');
 
     data.tasks.push({
 
-        id:
-            Date.now(),
+        id:Date.now(),
 
-        name:
-            n,
+        name:n,
 
         time:
             document
-                .getElementById('taskTime')
-                .value,
+            .getElementById('taskTime')
+            .value,
 
-        date:
-            dateKey(
-                selectedDate
-            ),
+        date:dateKey(selectedDate),
 
-        done:
-            false,
+        done:false,
 
-        cls:
-            'blue'
-
+        cls:'blue'
     });
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã thêm công việc'
-    );
+    toast('Đã thêm công việc');
 }
 
 
@@ -1630,27 +834,21 @@ function addTask() {
    TIMER
 ========================= */
 
-function timerPage() {
+function timerPage(){
 
     if(timerInt)
         return runningTimer();
-
 
     return `
     <div class="screen">
 
         <div class="top">
 
-            <h1>
-                Hẹn giờ
-            </h1>
+            <h1>Hẹn giờ</h1>
 
-            <button class="more">
-                ⋮
-            </button>
+            <button class="more">⋮</button>
 
         </div>
-
 
         <div class="timer-select">
 
@@ -1659,27 +857,21 @@ function timerPage() {
                 <button
                     class="${timerMode==='countdown'?'active':''}"
                     onclick="setTimerMode('countdown')">
-
                     Đếm ngược
-
                 </button>
-
 
                 <button
                     class="${timerMode==='reminder'?'active':''}"
                     onclick="setTimerMode('reminder')">
-
                     Nhắc việc
-
                 </button>
 
             </div>
 
-
             ${
                 timerMode==='countdown'
-                ? timerCountdownForm()
-                : timerReminderForm()
+                ?timerCountdownForm()
+                :timerReminderForm()
             }
 
         </div>
@@ -1687,37 +879,27 @@ function timerPage() {
     </div>`;
 }
 
+function setTimerMode(mode){
 
-function setTimerMode(mode) {
-
-    timerMode =
-        mode;
+    timerMode=mode;
 
     render();
 }
 
-
-function timerCountdownForm() {
+function timerCountdownForm(){
 
     return `
     <div class="timer-hero">
 
-        <div class="stopwatch">
-            ◷
-        </div>
+        <div class="stopwatch">◷</div>
 
-        <h2>
-            Đặt thời gian đếm ngược
-        </h2>
-
+        <h2>Đặt thời gian đếm ngược</h2>
 
         <div class="free-time">
 
             <div>
 
-                <label>
-                    Phút
-                </label>
+                <label>Phút</label>
 
                 <input
                     id="timerMinutes"
@@ -1728,17 +910,11 @@ function timerCountdownForm() {
 
             </div>
 
-
-            <span>
-                :
-            </span>
-
+            <span>:</span>
 
             <div>
 
-                <label>
-                    Giây
-                </label>
+                <label>Giây</label>
 
                 <input
                     id="timerSeconds"
@@ -1751,32 +927,18 @@ function timerCountdownForm() {
 
         </div>
 
-
         <div class="quick-times">
 
-            <button onclick="setTimerPreset(5)">
-                5 phút
-            </button>
-
-            <button onclick="setTimerPreset(15)">
-                15 phút
-            </button>
-
-            <button onclick="setTimerPreset(25)">
-                25 phút
-            </button>
-
-            <button onclick="setTimerPreset(60)">
-                1 giờ
-            </button>
+            <button onclick="setTimerPreset(5)">5 phút</button>
+            <button onclick="setTimerPreset(15)">15 phút</button>
+            <button onclick="setTimerPreset(25)">25 phút</button>
+            <button onclick="setTimerPreset(60)">1 giờ</button>
 
         </div>
-
 
         <label class="label">
             Tiêu đề (tùy chọn)
         </label>
-
 
         <input
             id="timerTitle"
@@ -1784,72 +946,48 @@ function timerCountdownForm() {
             value="${esc(localStorage.getItem('timerTitle')||'')}"
             placeholder="Ví dụ: Tập trung học bài">
 
-
         <button
             class="primary green full"
             style="margin-top:14px"
             onclick="startTimer()">
-
             Bắt đầu
-
         </button>
 
     </div>`;
 }
 
+function setTimerPreset(min){
 
-function setTimerPreset(min) {
-
-    timerSec =
-        min * 60;
+    timerSec=min*60;
 
     render();
 }
 
+function timerReminderForm(){
 
-function timerReminderForm() {
+    let now=new Date();
 
-    let now =
-        new Date();
+    let date=
+        now.toISOString().slice(0,10);
 
-
-    let date =
-        now
-            .toISOString()
-            .slice(0,10);
-
-
-    let time =
-        now
-            .toTimeString()
-            .slice(0,5);
-
+    let time=
+        now.toTimeString().slice(0,5);
 
     return `
     <div class="timer-hero reminder-form">
 
-        <div class="stopwatch">
-            🔔
-        </div>
+        <div class="stopwatch">🔔</div>
 
-        <h2>
-            Tạo nhắc việc
-        </h2>
+        <h2>Tạo nhắc việc</h2>
 
-
-        <label class="label">
-            Nội dung
-        </label>
+        <label class="label">Nội dung</label>
 
         <input
             id="reminderTitle"
             class="input"
             placeholder="Ví dụ: Học DSA">
 
-
-        <label class="label">
-            Ngày
-        </label>
+        <label class="label">Ngày</label>
 
         <input
             id="reminderDate"
@@ -1857,10 +995,7 @@ function timerReminderForm() {
             class="input"
             value="${date}">
 
-
-        <label class="label">
-            Giờ nhắc
-        </label>
+        <label class="label">Giờ nhắc</label>
 
         <input
             id="reminderTime"
@@ -1868,16 +1003,12 @@ function timerReminderForm() {
             class="input"
             value="${time}">
 
-
         <button
             class="primary green full"
             style="margin-top:14px"
             onclick="createReminder()">
-
             Đặt nhắc việc
-
         </button>
-
 
         <small class="hint">
             Bạn cần cho phép thông báo để nhận cảnh báo.
@@ -1886,62 +1017,45 @@ function timerReminderForm() {
     </div>`;
 }
 
+function createReminder(){
 
-function createReminder() {
-
-    let name =
+    let name=
         document
-            .getElementById('reminderTitle')
-            .value
-            .trim();
+        .getElementById('reminderTitle')
+        .value
+        .trim();
 
-
-    let d =
+    let d=
         document
-            .getElementById('reminderDate')
-            .value;
+        .getElementById('reminderDate')
+        .value;
 
-
-    let tm =
+    let tm=
         document
-            .getElementById('reminderTime')
-            .value;
+        .getElementById('reminderTime')
+        .value;
 
-
-    if(!name || !d || !tm)
+    if(!name||!d||!tm)
         return toast(
             'Hãy nhập đủ nội dung, ngày và giờ'
         );
 
-
-    let [
-        y,
-        m,
-        day
-    ] = d.split('-');
-
+    let [y,m,day]=d.split('-');
 
     data.tasks.push({
 
-        id:
-            Date.now(),
+        id:Date.now(),
 
         name,
 
-        time:
-            tm,
+        time:tm,
 
-        date:
-            `${day}/${m}/${y}`,
+        date:`${day}/${m}/${y}`,
 
-        done:
-            false,
+        done:false,
 
-        cls:
-            'blue'
-
+        cls:'blue'
     });
-
 
     save();
 
@@ -1951,174 +1065,121 @@ function createReminder() {
 
     scheduleReminderChecks();
 
-    toast(
-        'Đã tạo nhắc việc'
-    );
-
+    toast('Đã tạo nhắc việc');
 
     setTimeout(
-        () => render(),
+        ()=>render(),
         250
     );
 }
 
-
-function requestNotifyPermission() {
+function requestNotifyPermission(){
 
     if(
         'Notification' in window &&
-        Notification.permission === 'default'
-    ) {
+        Notification.permission==='default'
+    ){
 
         Notification
             .requestPermission()
-            .catch(
-                () => {}
-            );
+            .catch(()=>{});
     }
 }
 
-
-function startReminderChecks() {
+function startReminderChecks(){
 
     if(reminderCheckInt)
         return;
 
-
-    reminderCheckInt =
+    reminderCheckInt=
         setInterval(
             checkDueReminders,
             15000
         );
 }
 
-
-function scheduleReminderChecks() {
+function scheduleReminderChecks(){
 
     startReminderChecks();
 
     checkDueReminders();
 }
 
-
-function checkDueReminders() {
+function checkDueReminders(){
 
     if(!data.settings.notify)
         return;
 
+    let now=new Date();
 
-    let now =
-        new Date();
+    let key=
+        now.toLocaleDateString('vi-VN');
 
-
-    let key =
-        now.toLocaleDateString(
-            'vi-VN'
-        );
-
-
-    let tm =
-        now
-            .toTimeString()
-            .slice(0,5);
-
+    let tm=
+        now.toTimeString().slice(0,5);
 
     data.tasks
         .filter(
-            t =>
+            t=>
                 !t.done &&
-                t.date === key &&
-                t.time === tm
+                t.date===key &&
+                t.time===tm
         )
-        .forEach(
-            t => {
+        .forEach(t=>{
 
-                let mark =
-                    `reminder_${t.id}_${key}_${tm}`;
+            let mark=
+                `reminder_${t.id}_${key}_${tm}`;
 
+            if(sessionStorage.getItem(mark))
+                return;
 
-                if(
-                    sessionStorage
-                        .getItem(mark)
-                )
-                    return;
+            sessionStorage.setItem(mark,'1');
 
-
-                sessionStorage
-                    .setItem(
-                        mark,
-                        '1'
-                    );
-
-
-                notify(
-                    'Triển Life',
-                    `Đã đến giờ: ${t.name}`
-                );
-
-            }
-        );
+            notify(
+                'Triển Life',
+                `Đã đến giờ: ${t.name}`
+            );
+        });
 }
 
-
-function runningTimer() {
+function runningTimer(){
 
     return `
     <div class="timer-running">
 
         <div class="top">
 
-            <button onclick="stopTimer()">
-                ×
-            </button>
+            <button onclick="stopTimer()">×</button>
 
-            <h1>
-                Hẹn giờ
-            </h1>
+            <h1>Hẹn giờ</h1>
 
-            <button>
-                ⚙
-            </button>
+            <button>⚙</button>
 
         </div>
-
 
         <div class="ring">
 
             <div class="ring-inner">
 
                 <b>
-
-                    ${String(
-                        Math.floor(timerSec/60)
-                    ).padStart(2,'0')}:${String(
-                        timerSec%60
-                    ).padStart(2,'0')}
-
+                    ${String(Math.floor(timerSec/60)).padStart(2,'0')}:${String(timerSec%60).padStart(2,'0')}
                 </b>
 
-                <small>
-                    Đếm ngược
-                </small>
+                <small>Đếm ngược</small>
 
             </div>
 
         </div>
 
-
         <div class="running-card">
 
-            <div class="ico">
-                ◷
-            </div>
+            <div class="ico">◷</div>
 
             <div>
 
                 <b>
                     ${esc(
-                        localStorage.getItem(
-                            'timerTitle'
-                        )
+                        localStorage.getItem('timerTitle')
                         ||
                         'Tập trung học DSA'
                     )}
@@ -2132,31 +1193,20 @@ function runningTimer() {
 
         </div>
 
-
         <div class="run-actions">
 
             <button onclick="resetTimer()">
-
-                ↻<br>
-                Reset
-
+                ↻<br>Reset
             </button>
-
 
             <button
                 class="pause"
                 onclick="pauseTimer()">
-
                 Ⅱ
-
             </button>
 
-
             <button onclick="addMinute()">
-
-                ＋<br>
-                +1 phút
-
+                ＋<br>+1 phút
             </button>
 
         </div>
@@ -2164,108 +1214,76 @@ function runningTimer() {
     </div>`;
 }
 
+function startTimer(){
 
-function startTimer() {
-
-    let mins =
+    let mins=
         Math.max(
             0,
             parseInt(
-                document
-                    .getElementById(
-                        'timerMinutes'
-                    )?.value
-                || 0
+                document.getElementById('timerMinutes')?.value||0
             )
         );
 
-
-    let secs =
+    let secs=
         Math.min(
             59,
             Math.max(
                 0,
                 parseInt(
-                    document
-                        .getElementById(
-                            'timerSeconds'
-                        )?.value
-                    || 0
+                    document.getElementById('timerSeconds')?.value||0
                 )
             )
         );
 
+    timerSec=mins*60+secs;
 
-    timerSec =
-        mins * 60 + secs;
-
-
-    if(timerSec <= 0)
+    if(timerSec<=0)
         return toast(
             'Hãy đặt thời gian lớn hơn 0'
         );
 
-
-    let title =
+    let title=
         document
-            .getElementById(
-                'timerTitle'
-            )
-            ?.value
-            .trim()
+        .getElementById('timerTitle')
+        ?.value
+        .trim()
         ||
         'Tập trung học DSA';
-
 
     localStorage.setItem(
         'timerTitle',
         title
     );
 
-
     requestNotifyPermission();
 
+    timerTotal=timerSec;
 
-    timerTotal =
-        timerSec;
+    clearInterval(timerInt);
 
-
-    clearInterval(
-        timerInt
-    );
-
-
-    timerInt =
+    timerInt=
         setInterval(
-            () => {
+            ()=>{
 
                 timerSec--;
 
+                if(timerSec<=0){
 
-                if(timerSec <= 0) {
+                    clearInterval(timerInt);
 
-                    clearInterval(
-                        timerInt
-                    );
+                    timerInt=null;
 
-                    timerInt =
-                        null;
-
-                    timerSec =
-                        0;
-
+                    timerSec=0;
 
                     notify(
                         'Triển Life',
                         'Hẹn giờ đã kết thúc ⏰'
                     );
 
-
                     toast(
                         'Hẹn giờ đã kết thúc'
                     );
                 }
-
 
                 render();
 
@@ -2273,68 +1291,45 @@ function startTimer() {
             1000
         );
 
+    render();
+}
+
+function pauseTimer(){
+
+    clearInterval(timerInt);
+
+    timerInt=null;
 
     render();
 }
 
+function stopTimer(){
 
-function pauseTimer() {
+    clearInterval(timerInt);
 
-    clearInterval(
-        timerInt
-    );
+    timerInt=null;
 
-    timerInt =
-        null;
+    timerSec=timerTotal=1500;
 
     render();
 }
 
+function resetTimer(){
 
-function stopTimer() {
+    timerSec=timerTotal=1500;
 
-    clearInterval(
-        timerInt
-    );
+    clearInterval(timerInt);
 
-    timerInt =
-        null;
-
-
-    timerSec =
-        timerTotal =
-        1500;
-
+    timerInt=null;
 
     render();
 }
 
+function addMinute(){
 
-function resetTimer() {
+    timerSec+=60;
 
-    timerSec =
-        timerTotal =
-        1500;
-
-
-    clearInterval(
-        timerInt
-    );
-
-
-    timerInt =
-        null;
-
-
-    render();
-}
-
-
-function addMinute() {
-
-    timerSec += 60;
-
-    timerTotal += 60;
+    timerTotal+=60;
 
     render();
 }
@@ -2344,7 +1339,7 @@ function addMinute() {
    FINANCE
 ========================= */
 
-function finance() {
+function finance(){
 
     return `
     <div class="screen">
@@ -2355,9 +1350,7 @@ function finance() {
 
                 <div>
 
-                    <h1>
-                        Tài chính
-                    </h1>
+                    <h1>Tài chính</h1>
 
                     <p>
                         Quản lý chi tiêu · Tích lũy tương lai
@@ -2365,57 +1358,42 @@ function finance() {
 
                 </div>
 
-
                 <button
                     class="more"
                     onclick="toast('Tùy chọn tài chính')">
-
                     ⋮
-
                 </button>
 
             </div>
-
 
             <div class="tabs finance-tabs">
 
                 <button
                     class="${financeTab==='overview'?'active':''}"
                     onclick="setFinanceTab('overview')">
-
                     Tổng quan
-
                 </button>
-
 
                 <button
                     class="${financeTab==='income'?'active':''}"
                     onclick="setFinanceTab('income')">
-
                     Thu / Chi
-
                 </button>
-
 
                 <button
                     class="${financeTab==='category'?'active':''}"
                     onclick="setFinanceTab('category')">
-
                     Danh mục
-
                 </button>
 
             </div>
 
-
             ${
                 financeTab==='overview'
-                ? financeOverview()
-
-                : financeTab==='income'
-                ? financeIncome()
-
-                : financeCategory()
+                ?financeOverview()
+                :financeTab==='income'
+                ?financeIncome()
+                :financeCategory()
             }
 
         </div>
@@ -2423,17 +1401,14 @@ function finance() {
     </div>`;
 }
 
+function setFinanceTab(tab){
 
-function setFinanceTab(tab) {
-
-    financeTab =
-        tab;
+    financeTab=tab;
 
     render();
 }
 
-
-function financeOverview() {
+function financeOverview(){
 
     return `
     <div class="asset">
@@ -2442,9 +1417,7 @@ function financeOverview() {
             Tổng tài sản　◉
         </small>
 
-        <h2>
-            ${fmt(total())}
-        </h2>
+        <h2>${fmt(total())}</h2>
 
         <div class="change">
             ↑ +320.000đ (so với tháng trước)
@@ -2452,12 +1425,9 @@ function financeOverview() {
 
     </div>
 
-
     <div class="section-head">
 
-        <h3>
-            Các ví của tôi
-        </h3>
+        <h3>Các ví của tôi</h3>
 
         <button onclick="walletList()">
             + Tạo ví
@@ -2465,17 +1435,11 @@ function financeOverview() {
 
     </div>
 
-
-    ${data.wallets.map(
-        walletRow
-    ).join('')}
-
+    ${data.wallets.map(walletRow).join('')}
 
     <div class="section-head">
 
-        <h3>
-            Giao dịch gần đây
-        </h3>
+        <h3>Giao dịch gần đây</h3>
 
         <button onclick="txList()">
             Xem tất cả ›
@@ -2483,21 +1447,11 @@ function financeOverview() {
 
     </div>
 
-
-    ${data.transactions
-        .slice(0,3)
-        .map(txRow)
-        .join('')}
-
+    ${data.transactions.slice(0,3).map(txRow).join('')}
 
     <div class="section-head">
-
-        <h3>
-            Thao tác nhanh
-        </h3>
-
+        <h3>Thao tác nhanh</h3>
     </div>
-
 
     <div class="quick-grid">
 
@@ -2505,171 +1459,88 @@ function financeOverview() {
             class="quick"
             onclick="txModal('income')">
 
-            <div class="qico">
-                ↗
-            </div>
-
-            <b>
-                Thu
-            </b>
-
-            <small>
-                Giao dịch
-            </small>
+            <div class="qico">↗</div>
+            <b>Thu</b>
+            <small>Giao dịch</small>
 
         </button>
-
 
         <button
             class="quick"
             onclick="txModal('expense')">
 
-            <div class="qico">
-                ↘
-            </div>
-
-            <b>
-                Chi
-            </b>
-
-            <small>
-                Giao dịch
-            </small>
+            <div class="qico">↘</div>
+            <b>Chi</b>
+            <small>Giao dịch</small>
 
         </button>
-
 
         <button
             class="quick"
             onclick="transferModal()">
 
-            <div class="qico">
-                ⇄
-            </div>
-
-            <b>
-                Chuyển
-            </b>
-
-            <small>
-                Giữa ví
-            </small>
+            <div class="qico">⇄</div>
+            <b>Chuyển</b>
+            <small>Giữa ví</small>
 
         </button>
-
 
         <button
             class="quick"
             onclick="stats()">
 
-            <div class="qico">
-                ◔
-            </div>
-
-            <b>
-                Thống kê
-            </b>
-
-            <small>
-                Báo cáo
-            </small>
+            <div class="qico">◔</div>
+            <b>Thống kê</b>
+            <small>Báo cáo</small>
 
         </button>
 
     </div>`;
 }
 
+function financeIncome(){
 
-function financeIncome() {
-
-    let income =
+    let income=
         data.transactions
-            .filter(
-                t =>
-                    t.type === 'income'
-            )
-            .reduce(
-                (a,t) =>
-                    a+t.amount,
-                0
-            );
+        .filter(t=>t.type==='income')
+        .reduce((a,t)=>a+t.amount,0);
 
-
-    let expense =
+    let expense=
         data.transactions
-            .filter(
-                t =>
-                    t.type === 'expense'
-            )
-            .reduce(
-                (a,t) =>
-                    a+t.amount,
-                0
-            );
-
+        .filter(t=>t.type==='expense')
+        .reduce((a,t)=>a+t.amount,0);
 
     return `
     <div class="asset">
 
-        <small>
-            Số dư hiện tại
-        </small>
+        <small>Số dư hiện tại</small>
 
-        <h2>
-            ${fmt(total())}
-        </h2>
+        <h2>${fmt(total())}</h2>
 
     </div>
-
 
     <div class="finance-summary">
 
         <div>
-
-            <small>
-                Thu nhập
-            </small>
-
-            <b class="green-t">
-                ${money(income)}
-            </b>
-
+            <small>Thu nhập</small>
+            <b class="green-t">${money(income)}</b>
         </div>
 
-
         <div>
-
-            <small>
-                Chi tiêu
-            </small>
-
-            <b class="red-t">
-                ${money(expense)}
-            </b>
-
+            <small>Chi tiêu</small>
+            <b class="red-t">${money(expense)}</b>
         </div>
 
-
         <div>
-
-            <small>
-                Chênh lệch
-            </small>
-
-            <b>
-                ${money(income-expense)}
-            </b>
-
+            <small>Chênh lệch</small>
+            <b>${money(income-expense)}</b>
         </div>
 
     </div>
 
-
     <div class="section-head">
 
-        <h3>
-            Giao dịch gần đây
-        </h3>
+        <h3>Giao dịch gần đây</h3>
 
         <button onclick="txModal('income')">
             ＋ Thêm
@@ -2677,21 +1548,15 @@ function financeIncome() {
 
     </div>
 
-
-    ${data.transactions
-        .map(txRow)
-        .join('')}`;
+    ${data.transactions.map(txRow).join('')}`;
 }
 
-
-function financeCategory() {
+function financeCategory(){
 
     return `
     <div class="section-head">
 
-        <h3>
-            Danh mục chi tiêu
-        </h3>
+        <h3>Danh mục chi tiêu</h3>
 
         <button onclick="stats()">
             Thống kê ›
@@ -2699,11 +1564,9 @@ function financeCategory() {
 
     </div>
 
-
     <div class="chart-card">
 
         <div class="donut"></div>
-
 
         ${
             [
@@ -2714,7 +1577,7 @@ function financeCategory() {
                 ['Khác',187500]
             ]
             .map(
-                (x,i) =>
+                x=>
                 `<div class="legend-row">
 
                     <i class="legend-dot"></i>
@@ -2723,9 +1586,7 @@ function financeCategory() {
                         ${x[0]}
                     </span>
 
-                    <b>
-                        ${money(x[1])}
-                    </b>
+                    <b>${money(x[1])}</b>
 
                 </div>`
             )
@@ -2735,17 +1596,12 @@ function financeCategory() {
     </div>`;
 }
 
+function walletRow(w){
 
-function walletRow(w) {
-
-    let pct =
+    let pct=
         total()
-        ? (
-            (w.balance /
-            total()) * 100
-        ).toFixed(1)
-        : 0;
-
+        ?((w.balance/total())*100).toFixed(1)
+        :0;
 
     return `
     <div
@@ -2756,37 +1612,26 @@ function walletRow(w) {
             ${w.icon}
         </div>
 
-
         <div class="wallet-main">
 
-            <b>
-                ${esc(w.name)}
-            </b>
+            <b>${esc(w.name)}</b>
 
-            <small>
-                ${esc(w.sub)}
-            </small>
+            <small>${esc(w.sub)}</small>
 
         </div>
 
-
         <div class="wallet-money">
 
-            <b>
-                ${fmt(w.balance)}
-            </b>
+            <b>${fmt(w.balance)}</b>
 
-            <small>
-                (= ${pct}%)
-            </small>
+            <small>(= ${pct}%)</small>
 
         </div>
 
     </div>`;
 }
 
-
-function txRow(t) {
+function txRow(t){
 
     return `
     <div class="tx-row">
@@ -2795,12 +1640,9 @@ function txRow(t) {
             ${t.type==='income'?'↗':'●'}
         </div>
 
-
         <div class="tx-main">
 
-            <b>
-                ${esc(t.name)}
-            </b>
+            <b>${esc(t.name)}</b>
 
             <small>
                 ${esc(wallet(t.wallet)?.name||'')}
@@ -2808,7 +1650,6 @@ function txRow(t) {
             </small>
 
         </div>
-
 
         <div class="tx-amount ${t.type}">
             ${t.type==='income'?'+':'-'}${money(t.amount)}
@@ -2822,76 +1663,53 @@ function txRow(t) {
    WALLET
 ========================= */
 
-function walletList() {
+function walletList(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Ví của tôi
-            </h3>
+            <h3>Ví của tôi</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
-
 
         <div class="asset">
 
-            <small>
-                Tổng tài sản　◉
-            </small>
+            <small>Tổng tài sản　◉</small>
 
-            <h2>
-                ${fmt(total())}
-            </h2>
+            <h2>${fmt(total())}</h2>
 
         </div>
 
-
-        ${data.wallets.map(
-            walletRow
-        ).join('')}
-
+        ${data.wallets.map(walletRow).join('')}
 
         <button
             class="primary full"
             style="margin-top:10px"
             onclick="closeSheet();walletModal()">
-
             ＋ Tạo ví mới
-
         </button>
 
     `);
 }
 
-
-function walletModal() {
+function walletModal(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Tạo ví mới
-            </h3>
+            <h3>Tạo ví mới</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Tên ví
-            </label>
+            <label>Tên ví</label>
 
             <input
                 id="wname"
@@ -2899,91 +1717,39 @@ function walletModal() {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Chọn biểu tượng
-            </label>
-
+            <label>Chọn biểu tượng</label>
 
             <div class="quick-grid">
 
-                <button
-                    class="quick"
-                    onclick="pickIcon('🏦')">
-
-                    🏦
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="pickIcon('▣')">
-
-                    ▣
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="pickIcon('▤')">
-
-                    ▤
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="pickIcon('💳')">
-
-                    💳
-
-                </button>
+                <button class="quick" onclick="pickIcon('🏦')">🏦</button>
+                <button class="quick" onclick="pickIcon('▣')">▣</button>
+                <button class="quick" onclick="pickIcon('▤')">▤</button>
+                <button class="quick" onclick="pickIcon('💳')">💳</button>
 
             </div>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Loại ví
-            </label>
-
+            <label>Loại ví</label>
 
             <select id="wsub">
 
-                <option>
-                    Ví tiền mặt
-                </option>
-
-                <option>
-                    Ví ngân hàng
-                </option>
-
-                <option>
-                    Ví điện tử
-                </option>
-
-                <option>
-                    Thẻ tín dụng
-                </option>
+                <option>Ví tiền mặt</option>
+                <option>Ví ngân hàng</option>
+                <option>Ví điện tử</option>
+                <option>Thẻ tín dụng</option>
 
             </select>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Số dư ban đầu
-            </label>
+            <label>Số dư ban đầu</label>
 
             <input
                 id="wbal"
@@ -2992,118 +1758,81 @@ function walletModal() {
 
         </div>
 
-
         <button
             class="primary full"
             style="margin-top:15px"
             onclick="addWallet()">
-
             Tạo ví
-
         </button>
 
     `);
 }
 
+let picked='🏦';
 
-let picked =
-    '🏦';
+function pickIcon(x){
 
+    picked=x;
 
-function pickIcon(x) {
-
-    picked =
-        x;
-
-    toast(
-        'Đã chọn '+x
-    );
+    toast('Đã chọn '+x);
 }
 
+function addWallet(){
 
-function addWallet() {
-
-    let n =
+    let n=
         document
-            .getElementById('wname')
-            .value
-            .trim();
-
+        .getElementById('wname')
+        .value
+        .trim();
 
     if(!n)
-        return toast(
-            'Nhập tên ví'
-        );
-
+        return toast('Nhập tên ví');
 
     data.wallets.push({
 
-        id:
-            Date.now(),
+        id:Date.now(),
 
-        name:
-            n,
+        name:n,
 
         sub:
             document
-                .getElementById('wsub')
-                .value,
+            .getElementById('wsub')
+            .value,
 
         balance:
             +document
-                .getElementById('wbal')
-                .value
-            || 0,
+            .getElementById('wbal')
+            .value||0,
 
-        icon:
-            picked,
+        icon:picked,
 
-        cls:
-            'bank'
-
+        cls:'bank'
     });
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã tạo ví'
-    );
+    toast('Đã tạo ví');
 }
 
+function walletDetail(id){
 
-function walletDetail(id) {
+    let w=wallet(id);
 
-    let w =
-        wallet(id);
-
-
-    if(!w)
-        return;
-
+    if(!w) return;
 
     openSheet(`
 
         <div class="close-row">
 
-            <button onclick="closeSheet()">
-                ‹
-            </button>
+            <button onclick="closeSheet()">‹</button>
 
-            <h3>
-                Quản lý ví
-            </h3>
+            <h3>Quản lý ví</h3>
 
-            <button>
-                ⋮
-            </button>
+            <button>⋮</button>
 
         </div>
-
 
         <div class="detail-hero">
 
@@ -3112,16 +1841,11 @@ function walletDetail(id) {
                 ${esc(w.name)}　◉
             </b>
 
-            <small>
-                ${esc(w.sub)}
-            </small>
+            <small>${esc(w.sub)}</small>
 
-            <h2>
-                ${fmt(w.balance)}
-            </h2>
+            <h2>${fmt(w.balance)}</h2>
 
         </div>
-
 
         <div class="icon-actions">
 
@@ -3129,118 +1853,83 @@ function walletDetail(id) {
                 class="icon-action"
                 onclick="editWallet(${id})">
 
-                <div class="circle-action">
-                    ✎
-                </div>
-
+                <div class="circle-action">✎</div>
                 Sửa
 
             </button>
-
 
             <button
                 class="icon-action"
                 onclick="txModal('income',${id})">
 
-                <div class="circle-action">
-                    ◉
-                </div>
-
+                <div class="circle-action">◉</div>
                 Nạp tiền
 
             </button>
-
 
             <button
                 class="icon-action"
                 onclick="txModal('expense',${id})">
 
-                <div class="circle-action">
-                    ▣
-                </div>
-
+                <div class="circle-action">▣</div>
                 Rút tiền
 
             </button>
-
 
             <button
                 class="icon-action"
                 onclick="deleteWallet(${id})">
 
-                <div class="circle-action">
-                    ♲
-                </div>
-
+                <div class="circle-action">♲</div>
                 Xóa
 
             </button>
 
         </div>
 
-
         <h3 style="font-size:12px">
             Giao dịch gần đây
         </h3>
 
-
         ${
             data.transactions
-                .filter(
-                    t =>
-                        t.wallet == id
-                )
-                .map(txRow)
-                .join('')
+            .filter(t=>t.wallet==id)
+            .map(txRow)
+            .join('')
 
             ||
 
             '<small>Chưa có giao dịch</small>'
         }
 
-
         <button
             class="primary full"
             onclick="closeSheet();txList()">
-
             ＋ Lịch sử giao dịch
-
         </button>
 
     `);
 }
 
+function editWallet(id){
 
-function editWallet(id) {
+    let w=wallet(id);
 
-    let w =
-        wallet(id);
-
-
-    if(!w)
-        return;
-
+    if(!w) return;
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Sửa ví
-            </h3>
+            <h3>Sửa ví</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Tên ví
-            </label>
+            <label>Tên ví</label>
 
             <input
                 id="editWName"
@@ -3249,13 +1938,9 @@ function editWallet(id) {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Loại ví
-            </label>
-
+            <label>Loại ví</label>
 
             <select id="editWSub">
 
@@ -3282,8 +1967,8 @@ function editWallet(id) {
                         'Ví điện tử',
                         'Thẻ tín dụng'
                     ].includes(w.sub)
-                    ? 'selected'
-                    : ''
+                    ?'selected'
+                    :''
                 }>
                     ${esc(w.sub)}
                 </option>
@@ -3292,188 +1977,96 @@ function editWallet(id) {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Biểu tượng
-            </label>
-
+            <label>Biểu tượng</label>
 
             <div class="quick-grid">
 
-                <button
-                    class="quick"
-                    onclick="setEditWalletIcon('🏦')">
-
-                    🏦
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="setEditWalletIcon('▣')">
-
-                    ▣
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="setEditWalletIcon('▤')">
-
-                    ▤
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="setEditWalletIcon('💳')">
-
-                    💳
-
-                </button>
-
-
-                <button
-                    class="quick"
-                    onclick="setEditWalletIcon('💰')">
-
-                    💰
-
-                </button>
+                <button class="quick" onclick="setEditWalletIcon('🏦')">🏦</button>
+                <button class="quick" onclick="setEditWalletIcon('▣')">▣</button>
+                <button class="quick" onclick="setEditWalletIcon('▤')">▤</button>
+                <button class="quick" onclick="setEditWalletIcon('💳')">💳</button>
+                <button class="quick" onclick="setEditWalletIcon('💰')">💰</button>
 
             </div>
 
         </div>
-
 
         <input
             id="editWIcon"
             type="hidden"
             value="${esc(w.icon)}">
 
-
         <button
             class="primary full"
             style="margin-top:15px"
             onclick="saveWalletEdit(${id})">
-
             Lưu thay đổi
-
         </button>
 
     `);
 }
 
+function setEditWalletIcon(icon){
 
-function setEditWalletIcon(icon) {
+    document.getElementById('editWIcon').value=icon;
 
-    document
-        .getElementById(
-            'editWIcon'
-        )
-        .value =
-        icon;
-
-
-    toast(
-        'Đã chọn biểu tượng'
-    );
+    toast('Đã chọn biểu tượng');
 }
 
+function saveWalletEdit(id){
 
-function saveWalletEdit(id) {
+    let w=wallet(id);
 
-    let w =
-        wallet(id);
+    if(!w) return;
 
-
-    if(!w)
-        return;
-
-
-    let n =
+    let n=
         document
-            .getElementById(
-                'editWName'
-            )
-            .value
-            .trim();
-
+        .getElementById('editWName')
+        .value
+        .trim();
 
     if(!n)
-        return toast(
-            'Nhập tên ví'
-        );
+        return toast('Nhập tên ví');
 
+    w.name=n;
 
-    w.name =
-        n;
-
-
-    w.sub =
+    w.sub=
         document
-            .getElementById(
-                'editWSub'
-            )
-            .value;
+        .getElementById('editWSub')
+        .value;
 
-
-    w.icon =
+    w.icon=
         document
-            .getElementById(
-                'editWIcon'
-            )
-            .value
-        || w.icon;
-
+        .getElementById('editWIcon')
+        .value||w.icon;
 
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã cập nhật ví'
-    );
+    toast('Đã cập nhật ví');
 }
 
+function deleteWallet(id){
 
-function deleteWallet(id) {
+    if(data.wallets.length<=1)
+        return toast('Phải có ít nhất 1 ví');
 
-    if(data.wallets.length <= 1)
-        return toast(
-            'Phải có ít nhất 1 ví'
-        );
-
-
-    if(!confirm(
-        'Xóa ví này?'
-    ))
+    if(!confirm('Xóa ví này?'))
         return;
 
-
-    data.wallets =
+    data.wallets=
         data.wallets.filter(
-            w =>
-                w.id != id
+            w=>w.id!=id
         );
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã xóa ví'
-    );
+    toast('Đã xóa ví');
 }
 
 
@@ -3481,33 +2074,21 @@ function deleteWallet(id) {
    TRANSACTIONS
 ========================= */
 
-let selectedWalletForTx =
-    null;
+let selectedWalletForTx=null;
 
+function txModal(type='expense',walletId=null){
 
-function txModal(
-    type='expense',
-    walletId=null
-) {
-
-    selectedWalletForTx =
-        walletId;
-
+    selectedWalletForTx=walletId;
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Thêm giao dịch
-            </h3>
+            <h3>Thêm giao dịch</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
-
 
         <div class="seg">
 
@@ -3515,35 +2096,26 @@ function txModal(
                 id="incomeBtn"
                 class="${type==='income'?'active':''}"
                 onclick="setTxType('income')">
-
                 🟢 Thu
-
             </button>
-
 
             <button
                 id="expenseBtn"
                 class="${type==='expense'?'active':''}"
                 onclick="setTxType('expense')">
-
                 🔴 Chi
-
             </button>
 
         </div>
-
 
         <input
             id="txType"
             type="hidden"
             value="${type}">
 
-
         <div class="field">
 
-            <label>
-                Số tiền
-            </label>
+            <label>Số tiền</label>
 
             <input
                 id="txAmount"
@@ -3552,82 +2124,53 @@ function txModal(
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Danh mục
-            </label>
+            <label>Danh mục</label>
 
             <select id="txCat">
 
-                <option>
-                    Ăn uống
-                </option>
-
-                <option>
-                    Đi lại
-                </option>
-
-                <option>
-                    Học tập
-                </option>
-
-                <option>
-                    Giải trí
-                </option>
-
-                <option>
-                    Khác
-                </option>
+                <option>Ăn uống</option>
+                <option>Đi lại</option>
+                <option>Học tập</option>
+                <option>Giải trí</option>
+                <option>Khác</option>
 
             </select>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Ví
-            </label>
+            <label>Ví</label>
 
             <select id="txWallet">
 
                 ${
-                    data.wallets
-                        .map(
-                            w =>
-                            `<option
-                                value="${w.id}"
-                                ${
-                                    String(
-                                        selectedWalletForTx
-                                    )
-                                    ===
-                                    String(w.id)
-                                    ? 'selected'
-                                    : ''
-                                }>
+                    data.wallets.map(
+                        w=>
+                        `<option
+                            value="${w.id}"
+                            ${
+                                String(selectedWalletForTx)===String(w.id)
+                                ?'selected'
+                                :''
+                            }>
 
-                                ${esc(w.name)}
-                                · ${money(w.balance)}
+                            ${esc(w.name)}
+                            · ${money(w.balance)}
 
-                            </option>`
-                        )
-                        .join('')
+                        </option>`
+                    ).join('')
                 }
 
             </select>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Ngày
-            </label>
+            <label>Ngày</label>
 
             <input
                 id="txDate"
@@ -3635,12 +2178,9 @@ function txModal(
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Ghi chú (tùy chọn)
-            </label>
+            <label>Ghi chú (tùy chọn)</label>
 
             <textarea
                 id="txNote"
@@ -3649,253 +2189,171 @@ function txModal(
 
         </div>
 
-
         <button
             class="primary green full"
             style="margin-top:15px"
             onclick="saveTx()">
-
             Lưu giao dịch
-
         </button>
 
     `);
 }
 
+function setTxType(t){
 
-function setTxType(t) {
-
-    document
-        .getElementById(
-            'txType'
-        )
-        .value =
-        t;
-
+    document.getElementById('txType').value=t;
 
     document
-        .getElementById(
-            'incomeBtn'
-        )
+        .getElementById('incomeBtn')
         .classList
-        .toggle(
-            'active',
-            t === 'income'
-        );
-
+        .toggle('active',t==='income');
 
     document
-        .getElementById(
-            'expenseBtn'
-        )
+        .getElementById('expenseBtn')
         .classList
-        .toggle(
-            'active',
-            t === 'expense'
-        );
+        .toggle('active',t==='expense');
 }
 
+function saveTx(){
 
-function saveTx() {
-
-    let type =
+    let type=
         document
-            .getElementById(
-                'txType'
-            )
-            .value;
+        .getElementById('txType')
+        .value;
 
-
-    let amount =
+    let amount=
         +document
-            .getElementById(
-                'txAmount'
-            )
-            .value
-        || 0;
+        .getElementById('txAmount')
+        .value||0;
 
-
-    let w =
+    let w=
         wallet(
             document
-                .getElementById(
-                    'txWallet'
-                )
-                .value
+            .getElementById('txWallet')
+            .value
         );
-
 
     if(!amount)
-        return toast(
-            'Nhập số tiền'
-        );
+        return toast('Nhập số tiền');
 
-
-    if(
-        !w
-    )
-        return toast(
-            'Không tìm thấy ví'
-        );
-
+    if(!w)
+        return toast('Không tìm thấy ví');
 
     if(
-        type === 'expense' &&
-        w.balance < amount
+        type==='expense' &&
+        w.balance<amount
     )
-        return toast(
-            'Số dư không đủ'
-        );
+        return toast('Số dư không đủ');
 
-
-    w.balance +=
-        type === 'income'
-        ? amount
-        : -amount;
-
+    w.balance+=
+        type==='income'
+        ?amount
+        :-amount;
 
     data.transactions.unshift({
 
-        id:
-            Date.now(),
+        id:Date.now(),
 
         type,
 
         name:
             document
-                .getElementById(
-                    'txNote'
-                )
-                .value
+            .getElementById('txNote')
+            .value
             ||
             document
-                .getElementById(
-                    'txCat'
-                )
-                .value,
+            .getElementById('txCat')
+            .value,
 
         cat:
             document
-                .getElementById(
-                    'txCat'
-                )
-                .value,
+            .getElementById('txCat')
+            .value,
 
-        wallet:
-            w.id,
+        wallet:w.id,
 
         amount,
 
         date:
             document
-                .getElementById(
-                    'txDate'
-                )
-                .value
+            .getElementById('txDate')
+            .value
             ||
             '24/09/2026',
 
         time:
             new Date()
-                .toLocaleTimeString(
-                    'vi-VN',
-                    {
-                        hour:'2-digit',
-                        minute:'2-digit'
-                    }
-                )
-
+            .toLocaleTimeString(
+                'vi-VN',
+                {
+                    hour:'2-digit',
+                    minute:'2-digit'
+                }
+            )
     });
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã lưu giao dịch'
-    );
+    toast('Đã lưu giao dịch');
 }
 
-
-function transferModal() {
+function transferModal(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Chuyển tiền giữa các ví
-            </h3>
+            <h3>Chuyển tiền giữa các ví</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Từ ví
-            </label>
+            <label>Từ ví</label>
 
             <select id="fromWallet">
 
                 ${
-                    data.wallets
-                        .map(
-                            w =>
-                            `<option value="${w.id}">
-
-                                ${esc(w.name)}
-                                · ${money(w.balance)}
-
-                            </option>`
-                        )
-                        .join('')
+                    data.wallets.map(
+                        w=>
+                        `<option value="${w.id}">
+                            ${esc(w.name)}
+                            · ${money(w.balance)}
+                        </option>`
+                    ).join('')
                 }
 
             </select>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Đến ví
-            </label>
+            <label>Đến ví</label>
 
             <select id="toWallet">
 
                 ${
-                    data.wallets
-                        .map(
-                            w =>
-                            `<option value="${w.id}">
-
-                                ${esc(w.name)}
-                                · ${money(w.balance)}
-
-                            </option>`
-                        )
-                        .join('')
+                    data.wallets.map(
+                        w=>
+                        `<option value="${w.id}">
+                            ${esc(w.name)}
+                            · ${money(w.balance)}
+                        </option>`
+                    ).join('')
                 }
 
             </select>
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Số tiền
-            </label>
+            <label>Số tiền</label>
 
             <input
                 id="transferAmount"
@@ -3904,12 +2362,9 @@ function transferModal() {
 
         </div>
 
-
         <div class="field">
 
-            <label>
-                Ghi chú
-            </label>
+            <label>Ghi chú</label>
 
             <input
                 id="transferNote"
@@ -3917,134 +2372,86 @@ function transferModal() {
 
         </div>
 
-
         <button
             class="primary full"
             style="margin-top:15px"
             onclick="doTransfer()">
-
             Xác nhận
-
         </button>
 
     `);
 }
 
+function doTransfer(){
 
-function doTransfer() {
-
-    let a =
+    let a=
         +document
-            .getElementById(
-                'transferAmount'
-            )
-            .value;
+        .getElementById('transferAmount')
+        .value;
 
-
-    let from =
+    let from=
         wallet(
             document
-                .getElementById(
-                    'fromWallet'
-                )
-                .value
+            .getElementById('fromWallet')
+            .value
         );
 
-
-    let to =
+    let to=
         wallet(
             document
-                .getElementById(
-                    'toWallet'
-                )
-                .value
+            .getElementById('toWallet')
+            .value
         );
 
+    if(!from||!to)
+        return toast('Không tìm thấy ví');
 
-    if(
-        !from ||
-        !to
-    )
-        return toast(
-            'Không tìm thấy ví'
-        );
+    if(from.id===to.id)
+        return toast('Chọn 2 ví khác nhau');
 
+    if(!a||a>from.balance)
+        return toast('Số tiền không hợp lệ');
 
-    if(
-        from.id === to.id
-    )
-        return toast(
-            'Chọn 2 ví khác nhau'
-        );
-
-
-    if(
-        !a ||
-        a > from.balance
-    )
-        return toast(
-            'Số tiền không hợp lệ'
-        );
-
-
-    from.balance -=
-        a;
-
-    to.balance +=
-        a;
-
+    from.balance-=a;
+    to.balance+=a;
 
     data.transactions.unshift({
 
-        id:
-            Date.now(),
+        id:Date.now(),
 
-        type:
-            'transfer',
+        type:'transfer',
 
         name:
             document
-                .getElementById(
-                    'transferNote'
-                )
-                .value
+            .getElementById('transferNote')
+            .value
             ||
             'Chuyển khoản',
 
-        cat:
-            'Chuyển ví',
+        cat:'Chuyển ví',
 
-        wallet:
-            from.id,
+        wallet:from.id,
 
-        amount:
-            a,
+        amount:a,
 
-        date:
-            '24/09/2026',
+        date:'24/09/2026',
 
         time:
             new Date()
-                .toLocaleTimeString(
-                    'vi-VN',
-                    {
-                        hour:'2-digit',
-                        minute:'2-digit'
-                    }
-                )
-
+            .toLocaleTimeString(
+                'vi-VN',
+                {
+                    hour:'2-digit',
+                    minute:'2-digit'
+                }
+            )
     });
 
-
     save();
-
     closeSheet();
-
     render();
 
-    toast(
-        'Đã chuyển tiền'
-    );
+    toast('Đã chuyển tiền');
 }
 
 
@@ -4052,104 +2459,67 @@ function doTransfer() {
    TRANSACTION LIST
 ========================= */
 
-function txList() {
+function txList(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Lịch sử giao dịch
-            </h3>
+            <h3>Lịch sử giao dịch</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
-
 
         <div class="tabs">
 
             <button
                 class="active"
                 onclick="filterTx('all',this)">
-
                 Tất cả
-
             </button>
-
 
             <button
                 onclick="filterTx('income',this)">
-
                 Thu
-
             </button>
-
 
             <button
                 onclick="filterTx('expense',this)">
-
                 Chi
-
             </button>
 
         </div>
 
-
         <div id="txListBody">
-
-            ${data.transactions
-                .map(txRow)
-                .join('')}
-
+            ${data.transactions.map(txRow).join('')}
         </div>
 
     `);
 }
 
-
-function filterTx(type,btn) {
+function filterTx(type,btn){
 
     document
-        .querySelectorAll(
-            '.sheet .tabs button'
-        )
+        .querySelectorAll('.sheet .tabs button')
         .forEach(
-            b =>
-                b.classList.remove(
-                    'active'
-                )
+            b=>b.classList.remove('active')
         );
 
+    btn.classList.add('active');
 
-    btn.classList.add(
-        'active'
-    );
-
-
-    let list =
-        type === 'all'
-        ? data.transactions
-        : data.transactions.filter(
-            t =>
-                t.type === type
+    let list=
+        type==='all'
+        ?data.transactions
+        :data.transactions.filter(
+            t=>t.type===type
         );
-
 
     document
-        .getElementById(
-            'txListBody'
-        )
-        .innerHTML =
-
-        list
-            .map(txRow)
-            .join('')
-
+        .getElementById('txListBody')
+        .innerHTML=
+        list.map(txRow).join('')
         ||
-
         '<div class="empty">Không có giao dịch</div>';
 }
 
@@ -4158,65 +2528,51 @@ function filterTx(type,btn) {
    STATISTICS
 ========================= */
 
-function stats() {
+function stats(){
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>
-                Thống kê chi tiêu
-            </h3>
+            <h3>Thống kê chi tiêu</h3>
 
-            <button onclick="closeSheet()">
-                ×
-            </button>
+            <button onclick="closeSheet()">×</button>
 
         </div>
-
 
         <div class="subtabs">
 
             <button
                 class="${statsTab==='category'?'active':''}"
                 onclick="setStatsTab('category')">
-
                 Theo danh mục
-
             </button>
-
 
             <button
                 class="${statsTab==='wallet'?'active':''}"
                 onclick="setStatsTab('wallet')">
-
                 Theo ví
-
             </button>
 
         </div>
 
-
         ${
             statsTab==='category'
-            ? statsByCategory()
-            : statsByWallet()
+            ?statsByCategory()
+            :statsByWallet()
         }
 
     `);
 }
 
+function setStatsTab(tab){
 
-function setStatsTab(tab) {
-
-    statsTab =
-        tab;
+    statsTab=tab;
 
     stats();
 }
 
-
-function statsByCategory() {
+function statsByCategory(){
 
     return `
     <div class="chart-card">
@@ -4226,22 +2582,17 @@ function statsByCategory() {
                 display:flex;
                 justify-content:space-between;
                 font-size:10px;
-                font-weight:700
-            ">
+                font-weight:700">
 
             ‹
 
-            <span>
-                Tháng 9/2026
-            </span>
+            <span>Tháng 9/2026</span>
 
             ›
 
         </div>
 
-
         <div class="donut"></div>
-
 
         ${
             [
@@ -4252,7 +2603,7 @@ function statsByCategory() {
                 ['Khác',187500,'15%']
             ]
             .map(
-                x =>
+                x=>
                 `<div class="legend-row">
 
                     <i class="legend-dot"></i>
@@ -4261,13 +2612,9 @@ function statsByCategory() {
                         ${x[0]}
                     </span>
 
-                    <b>
-                        ${money(x[1])}
-                    </b>
+                    <b>${money(x[1])}</b>
 
-                    <span>
-                        ${x[2]}
-                    </span>
+                    <span>${x[2]}</span>
 
                 </div>`
             )
@@ -4276,13 +2623,11 @@ function statsByCategory() {
 
     </div>
 
-
     <div class="chart-card">
 
         <h3 style="font-size:11px">
             Top chi tiêu
         </h3>
-
 
         ${
             [
@@ -4291,12 +2636,10 @@ function statsByCategory() {
                 'Học tập'
             ]
             .map(
-                (x,i) =>
+                (x,i)=>
                 `<div class="legend-row">
 
-                    <span style="flex:1">
-                        ${x}
-                    </span>
+                    <span style="flex:1">${x}</span>
 
                     <b>
                         ${money(
@@ -4316,39 +2659,30 @@ function statsByCategory() {
     </div>`;
 }
 
+function statsByWallet(){
 
-function statsByWallet() {
-
-    let rows =
+    let rows=
         data.wallets
-            .map(
-                w => {
+        .map(w=>{
 
-                    let totalSpent =
-                        data.transactions
-                            .filter(
-                                t =>
-                                    t.wallet == w.id &&
-                                    t.type === 'expense'
-                            )
-                            .reduce(
-                                (a,t) =>
-                                    a+t.amount,
-                                0
-                            );
+            let totalSpent=
+                data.transactions
+                .filter(
+                    t=>
+                        t.wallet==w.id &&
+                        t.type==='expense'
+                )
+                .reduce(
+                    (a,t)=>a+t.amount,
+                    0
+                );
 
-                    return [
-                        w,
-                        totalSpent
-                    ];
+            return [w,totalSpent];
 
-                }
-            )
-            .sort(
-                (a,b) =>
-                    b[1]-a[1]
-            );
-
+        })
+        .sort(
+            (a,b)=>b[1]-a[1]
+        );
 
     return `
     <div class="chart-card">
@@ -4357,7 +2691,7 @@ function statsByWallet() {
 
             ${
                 rows.map(
-                    ([w,n]) =>
+                    ([w,n])=>
                     `<button
                         class="bar-row"
                         onclick="walletDetail(${w.id})">
@@ -4366,13 +2700,9 @@ function statsByWallet() {
                             ${w.icon}
                         </div>
 
-
                         <div class="grow">
 
-                            <b>
-                                ${esc(w.name)}
-                            </b>
-
+                            <b>${esc(w.name)}</b>
 
                             <div class="bar-track">
 
@@ -4381,18 +2711,14 @@ function statsByWallet() {
                                         width:${Math.min(
                                             100,
                                             n/5000
-                                        )}%
-                                    ">
+                                        )}%">
                                 </i>
 
                             </div>
 
                         </div>
 
-
-                        <b>
-                            ${money(n)}
-                        </b>
+                        <b>${money(n)}</b>
 
                     </button>`
                 ).join('')
@@ -4402,26 +2728,22 @@ function statsByWallet() {
 
     </div>
 
-
     <div class="chart-card">
 
         <h3 style="font-size:11px">
             Chi tiết theo ví
         </h3>
 
-
         ${
             rows.map(
-                ([w,n]) =>
+                ([w,n])=>
                 `<div class="legend-row">
 
                     <span style="flex:1">
                         ${esc(w.name)}
                     </span>
 
-                    <b>
-                        ${money(n)}
-                    </b>
+                    <b>${money(n)}</b>
 
                 </div>`
             ).join('')
@@ -4435,38 +2757,29 @@ function statsByWallet() {
    SETTINGS
 ========================= */
 
-function settings() {
+function settings(){
 
     return `
     <div class="screen">
 
         <div class="top">
-
-            <h1>
-                Cài đặt
-            </h1>
-
+            <h1>Cài đặt</h1>
         </div>
-
 
         <div
             class="hello"
             style="
                 display:flex;
                 align-items:center;
-                gap:10px
-            ">
+                gap:10px">
 
             <div class="wallet-icon bank">
                 T
             </div>
 
-
             <div>
 
-                <b>
-                    Triển
-                </b>
+                <b>Triển</b>
 
                 <small>
                     Phiên bản 1.0.0
@@ -4476,31 +2789,17 @@ function settings() {
 
         </div>
 
-
         <div class="section-head">
-
-            <h3>
-                Ứng dụng
-            </h3>
-
+            <h3>Ứng dụng</h3>
         </div>
-
 
         <div class="settings-row">
 
-            <span>
-                ♧
-            </span>
-
+            <span>♧</span>
 
             <div class="grow">
-
-                <b>
-                    Thông báo
-                </b>
-
+                <b>Thông báo</b>
             </div>
-
 
             <button
                 class="switch ${data.settings.notify?'on':''}"
@@ -4512,75 +2811,43 @@ function settings() {
 
         </div>
 
-
         <div class="settings-row">
 
-            <span>
-                ◐
-            </span>
-
+            <span>◐</span>
 
             <div class="grow">
-
-                <b>
-                    Giao diện
-                </b>
-
+                <b>Giao diện</b>
             </div>
 
-
             <button onclick="toggleSetting('dark')">
-
                 ${data.settings.dark?'Tối':'Sáng'}　›
-
             </button>
 
         </div>
 
-
         <div class="settings-row">
 
-            <span>
-                ◎
-            </span>
-
+            <span>◎</span>
 
             <div class="grow">
-
-                <b>
-                    Ngôn ngữ
-                </b>
-
+                <b>Ngôn ngữ</b>
             </div>
 
-
-            <span
-                style="font-size:9px">
-
+            <span style="font-size:9px">
                 Tiếng Việt ›
-
             </span>
 
         </div>
 
-
         <div class="section-head">
-
-            <h3>
-                Dữ liệu
-            </h3>
-
+            <h3>Dữ liệu</h3>
         </div>
-
 
         <div
             class="settings-row"
             onclick="exportData()">
 
-            <span>
-                ⇩
-            </span>
-
+            <span>⇩</span>
 
             <div class="grow">
 
@@ -4590,22 +2857,15 @@ function settings() {
 
             </div>
 
-
-            <span>
-                ›
-            </span>
+            <span>›</span>
 
         </div>
-
 
         <div
             class="settings-row"
             onclick="exportData()">
 
-            <span>
-                □
-            </span>
-
+            <span>□</span>
 
             <div class="grow">
 
@@ -4615,105 +2875,65 @@ function settings() {
 
             </div>
 
-
-            <span>
-                ›
-            </span>
+            <span>›</span>
 
         </div>
-
 
         <div class="settings-row">
 
-            <span>
-                ⓘ
-            </span>
-
+            <span>ⓘ</span>
 
             <div class="grow">
-
-                <b>
-                    Giới thiệu
-                </b>
-
+                <b>Giới thiệu</b>
             </div>
 
-
-            <span>
-                ›
-            </span>
+            <span>›</span>
 
         </div>
-
-
-        <button
-            class="primary full"
-            style="
-                margin-top:20px;
-                background:#fff0f1;
-                color:#e55b64;
-                box-shadow:none
-            "
-            onclick="logoutSupabase()">
-
-            ⎋ Đăng xuất
-
-        </button>
 
     </div>`;
 }
 
-
-async function toggleSetting(k) {
+async function toggleSetting(k){
 
     if(
-        k === 'notify' &&
+        k==='notify' &&
         !data.settings.notify &&
         'Notification' in window &&
-        Notification.permission === 'default'
-    ) {
+        Notification.permission==='default'
+    ){
 
-        try {
-
+        try{
             await Notification.requestPermission();
-
-        } catch(e) {}
-
+        }catch(e){}
     }
 
-
-    data.settings[k] =
-        !data.settings[k];
-
+    data.settings[k]=!data.settings[k];
 
     save();
-
     render();
-
 
     toast(
 
-        k === 'dark'
+        k==='dark'
 
-        ? (
+        ?(
             data.settings.dark
-            ? 'Đã chuyển sang giao diện tối'
-            : 'Đã chuyển sang giao diện sáng'
+            ?'Đã chuyển sang giao diện tối'
+            :'Đã chuyển sang giao diện sáng'
         )
 
-        : (
+        :(
             data.settings.notify
-            ? 'Đã bật thông báo'
-            : 'Đã tắt thông báo'
+            ?'Đã bật thông báo'
+            :'Đã tắt thông báo'
         )
-
     );
 }
 
+function exportData(){
 
-function exportData() {
-
-    let blob =
+    let blob=
         new Blob(
             [
                 JSON.stringify(
@@ -4727,61 +2947,37 @@ function exportData() {
             }
         );
 
+    let a=
+        document.createElement('a');
 
-    let a =
-        document.createElement(
-            'a'
-        );
+    a.href=
+        URL.createObjectURL(blob);
 
-
-    a.href =
-        URL.createObjectURL(
-            blob
-        );
-
-
-    a.download =
+    a.download=
         'trien-life-backup.json';
-
 
     a.click();
 
+    URL.revokeObjectURL(a.href);
 
-    URL.revokeObjectURL(
-        a.href
-    );
-
-
-    toast(
-        'Đã xuất dữ liệu'
-    );
+    toast('Đã xuất dữ liệu');
 }
 
-
-/*
-   Hàm này giờ chỉ dùng để
-   khôi phục dữ liệu mẫu.
-   Nó KHÔNG phải đăng xuất.
-*/
-
-function resetAll() {
+function resetAll(){
 
     if(!confirm(
         'Xóa toàn bộ dữ liệu và khôi phục mẫu?'
     ))
         return;
 
-
-    data =
+    data=
         structuredClone(
             defaultData
         );
 
-
     save();
 
     render();
-
 
     toast(
         'Đã khôi phục dữ liệu mẫu'
@@ -4793,13 +2989,11 @@ function resetAll() {
    MODAL / TOAST
 ========================= */
 
-function openSheet(html) {
+function openSheet(html){
 
     document
-        .getElementById(
-            'modalRoot'
-        )
-        .innerHTML = `
+        .getElementById('modalRoot')
+        .innerHTML=`
 
         <div
             class="modal-backdrop"
@@ -4818,63 +3012,39 @@ function openSheet(html) {
         </div>`;
 }
 
-
-function closeSheet() {
+function closeSheet(){
 
     document
-        .getElementById(
-            'modalRoot'
-        )
-        .innerHTML = '';
+        .getElementById('modalRoot')
+        .innerHTML='';
 }
 
+function toast(t){
 
-function toast(t) {
+    let x=
+        document.getElementById('toast');
 
-    let x =
-        document.getElementById(
-            'toast'
-        );
+    if(!x) return;
 
+    x.textContent=t;
 
-    if(!x)
-        return;
+    x.classList.add('show');
 
+    clearTimeout(window.tt);
 
-    x.textContent =
-        t;
-
-
-    x.classList.add(
-        'show'
-    );
-
-
-    clearTimeout(
-        window.tt
-    );
-
-
-    window.tt =
+    window.tt=
         setTimeout(
-            () =>
-                x.classList.remove(
-                    'show'
-                ),
+            ()=>x.classList.remove('show'),
             1800
         );
 }
 
-
-function notify(
-    title,
-    body
-) {
+function notify(title,body){
 
     if(
         'Notification' in window &&
-        Notification.permission === 'granted'
-    ) {
+        Notification.permission==='granted'
+    ){
 
         new Notification(
             title,
@@ -4894,29 +3064,21 @@ function notify(
 
 startReminderChecks();
 
-
-if(
-    'serviceWorker' in navigator
-) {
+if('serviceWorker' in navigator){
 
     window.addEventListener(
         'load',
-        () =>
+        ()=>
             navigator.serviceWorker
-                .register('./sw.js')
-                .catch(
-                    err =>
-                        console.error(
-                            'Service Worker lỗi:',
-                            err
-                        )
-                )
+            .register('./sw.js')
+            .catch(
+                err=>
+                    console.error(
+                        'Service Worker lỗi:',
+                        err
+                    )
+            )
     );
 }
 
-
 render();
-
-checkSupabase();
-
-getCurrentUser();
