@@ -41,7 +41,60 @@ const defaultData = {
 let data =
     JSON.parse(localStorage.getItem(KEY) || 'null')
     || structuredClone(defaultData);
+    async function syncWalletsToSupabase() {
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
 
+    if (userError || !userData.user) {
+        console.log("Chưa đăng nhập");
+        return;
+    }
+
+    const userId = userData.user.id;
+
+    const { data: wallets, error } =
+        await supabaseClient
+            .from('wallets')
+            .select('*')
+            .eq('user_id', userId);
+
+    if (error) {
+        console.error("Lỗi tải ví:", error);
+        return;
+    }
+
+    if (wallets.length === 0) {
+        const rows = data.wallets.map(w => ({
+            user_id: userId,
+            name: w.name,
+            type: w.sub,
+            balance: w.balance,
+            icon: w.icon
+        }));
+
+        const { error: insertError } =
+            await supabaseClient
+                .from('wallets')
+                .insert(rows);
+
+        if (insertError) {
+            console.error(
+                "Lỗi tạo ví:",
+                insertError
+            );
+            return;
+        }
+
+        console.log("Đã đồng bộ ví lên Supabase");
+    } else {
+        console.log(
+            "Đã có",
+            wallets.length,
+            "ví trên Supabase"
+        );
+    }
+}
+syncWalletsToSupabase();
 let page = 'home';
 
 let timerSec = 1500;
