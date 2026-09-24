@@ -46,6 +46,8 @@ let selectedDate=24;
 let timerMode='countdown';
 let reminderCheckInt=null;
 
+let selectedWalletForTx=null;
+
 
 /* =========================
    LOCAL DATA
@@ -149,6 +151,7 @@ function nav(){
         items.map(x=>
             `<button class="${page===x[0]?'active':''}"
                 aria-label="${x[1]}"
+                type="button"
                 onclick="go('${x[0]}')">
                 <span class="nav-icon">${navIcon(x[0])}</span>
                 <small>${x[1]}</small>
@@ -173,38 +176,35 @@ function go(p){
    RENDER
 ========================= */
 
-function render() {
+function render(){
+
     ensureTaskDates();
 
-    const screen =
-        document.getElementById('screen');
+    const screen=document.getElementById('screen');
+    const bottomNav=document.getElementById('bottomNav');
 
-    const bottomNav =
-        document.getElementById('bottomNav');
-
-    if(!screen || !bottomNav)
+    if(!screen||!bottomNav)
         return;
 
     nav();
 
-    screen.innerHTML =
-        page === 'home'
-        ? home()
-        : page === 'schedule'
-        ? schedule()
-        : page === 'timer'
-        ? timerPage()
-        : page === 'finance'
-        ? finance()
-        : page === 'settings'
-        ? settings()
-        : '';
+    screen.innerHTML=
+        page==='home'
+        ?home()
+        :page==='schedule'
+        ?schedule()
+        :page==='timer'
+        ?timerPage()
+        :page==='finance'
+        ?finance()
+        :page==='settings'
+        ?settings()
+        :'';
 
-    if(data.settings.dark) {
+    if(data.settings.dark)
         document.body.classList.add('dark');
-    } else {
+    else
         document.body.classList.remove('dark');
-    }
 }
 
 
@@ -232,8 +232,8 @@ function home(){
         </div>
 
         <div class="section-head">
-            <h3>Hôm nay (4)</h3>
-            <button onclick="go('schedule')">Xem tất cả ›</button>
+            <h3>Hôm nay (${data.tasks.length})</h3>
+            <button type="button" onclick="go('schedule')">Xem tất cả ›</button>
         </div>
 
         ${data.tasks.map(t=>taskHTML(t)).join('')}
@@ -251,13 +251,20 @@ function home(){
                 <small>${timerInt?'Đang chạy':'Sẵn sàng'}</small>
             </div>
 
-            <button class="play" onclick="go('timer')">▶</button>
+            <button
+                class="play"
+                type="button"
+                onclick="go('timer')">
+                ▶
+            </button>
 
         </div>
 
         <div class="section-head">
             <h3>Tài chính tháng này</h3>
-            <button onclick="go('finance')">Xem chi tiết ›</button>
+            <button type="button" onclick="go('finance')">
+                Xem chi tiết ›
+            </button>
         </div>
 
         <div class="finance-summary">
@@ -317,6 +324,7 @@ function schedule(){
 
             <button
                 class="primary"
+                type="button"
                 style="width:30px;height:30px;padding:0;border-radius:50%"
                 onclick="taskModal()">
                 ＋
@@ -327,18 +335,21 @@ function schedule(){
         <div class="tabs">
 
             <button
+                type="button"
                 class="${scheduleTab==='work'?'active':''}"
                 onclick="setScheduleTab('work')">
                 Công việc
             </button>
 
             <button
+                type="button"
                 class="${scheduleTab==='day'?'active':''}"
                 onclick="setScheduleTab('day')">
                 Lịch ngày
             </button>
 
             <button
+                type="button"
                 class="${scheduleTab==='reminder'?'active':''}"
                 onclick="setScheduleTab('reminder')">
                 Nhắc việc
@@ -384,6 +395,7 @@ function scheduleWork(){
             ['T2','T3','T4','T5','T6','T7','CN']
             .map((d,i)=>
                 `<button
+                    type="button"
                     class="day ${i===2?'active':''}"
                     onclick="selectScheduleDate(${22+i})">
 
@@ -405,10 +417,18 @@ function scheduleWork(){
         ${data.tasks.map(taskHTML).join('')}
     </div>
 
-    <button class="primary full" onclick="taskModal()">
+    <button
+        class="primary full"
+        type="button"
+        onclick="taskModal()">
         ＋ Thêm công việc
     </button>`;
 }
+
+
+/* =========================
+   LỊCH NGÀY
+========================= */
 
 function scheduleDay(){
 
@@ -419,11 +439,11 @@ function scheduleDay(){
 
         <div class="calendar-head">
 
-            <button onclick="changeMonth(-1)">‹</button>
+            <button type="button" onclick="changeMonth(-1)">‹</button>
 
             <b>Tháng 9, 2026</b>
 
-            <button onclick="changeMonth(1)">›</button>
+            <button type="button" onclick="changeMonth(1)">›</button>
 
         </div>
 
@@ -431,7 +451,8 @@ function scheduleDay(){
 
             ${
                 ['T2','T3','T4','T5','T6','T7','CN']
-                .map(x=>`<span>${x}</span>`).join('')
+                .map(x=>`<span>${x}</span>`)
+                .join('')
             }
 
             ${
@@ -444,6 +465,7 @@ function scheduleDay(){
 
                     return `
                     <button
+                        type="button"
                         onclick="selectScheduleDate(${day})"
                         class="${day===selectedDate?'today':''}">
                         ${day}
@@ -484,9 +506,9 @@ function scheduleDay(){
             </div>
 
             ${
-                list.map(
-                    t=>
+                list.map(t=>
                     `<button
+                        type="button"
                         class="timeline-row"
                         onclick="editTask(${t.id})">
 
@@ -501,16 +523,18 @@ function scheduleDay(){
                         }"></span>
 
                         <span style="width:42px;color:#6e7a8d">
-                            ${t.time}
+                            ${esc(t.time)}
                         </span>
 
                         <b>${esc(t.name)}</b>
 
+                        <span class="event-edit">
+                            ✎
+                        </span>
+
                     </button>`
                 ).join('')
-
                 ||
-
                 '<div class="empty">Không có sự kiện trong ngày này</div>'
             }
 
@@ -518,6 +542,7 @@ function scheduleDay(){
 
     </div>`;
 }
+
 
 function scheduleReminder(){
 
@@ -533,6 +558,7 @@ function scheduleReminder(){
 
             <button
                 class="primary"
+                type="button"
                 style="width:auto;padding:8px 14px"
                 onclick="reminderModal()">
                 ＋ Thêm
@@ -541,27 +567,37 @@ function scheduleReminder(){
         </div>
 
         ${
-            data.tasks.map(
-                t=>
+            data.tasks.map(t=>
                 `<div class="reminder-row">
 
-                    <div
+                    <button
+                        type="button"
                         class="check ${t.done?'done':''}"
                         onclick="toggleTask(${t.id})">
 
                         ${t.done?'✓':''}
 
-                    </div>
+                    </button>
 
                     <div class="grow">
 
                         <b>${esc(t.name)}</b>
 
-                        <small>Nhắc lúc ${t.time}</small>
+                        <small>
+                            ${esc(t.date||'')}
+                            · Nhắc lúc ${esc(t.time)}
+                        </small>
 
                     </div>
 
-                    <button onclick="editTask(${t.id})">⋮</button>
+                    <button
+                        type="button"
+                        class="reminder-edit"
+                        onclick="editTask(${t.id})">
+
+                        ✎
+
+                    </button>
 
                 </div>`
             ).join('')
@@ -577,6 +613,7 @@ function scheduleReminder(){
 function selectScheduleDate(d){
 
     selectedDate=Number(d);
+
     scheduleTab='day';
 
     render();
@@ -596,30 +633,55 @@ function reminderModal(){
     taskModal();
 }
 
+
+/* =========================
+   SỬA / XÓA SỰ KIỆN
+========================= */
+
 function editTask(id){
 
-    let t=data.tasks.find(x=>x.id===id);
+    const t=data.tasks.find(x=>x.id==id);
 
-    if(!t) return;
+    if(!t)
+        return toast('Không tìm thấy sự kiện');
+
+    let dateValue='24/09/2026';
+
+    if(t.date){
+
+        const parts=t.date.split('/');
+
+        if(parts.length===3){
+
+            dateValue=
+                `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+
+        }
+    }
 
     openSheet(`
 
         <div class="close-row">
 
-            <h3>Sửa công việc</h3>
+            <h3>Sửa sự kiện</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
         <div class="field">
 
-            <label>Tên công việc</label>
+            <label>Tên sự kiện</label>
 
             <input
                 id="editTaskName"
                 class="input"
-                value="${esc(t.name)}">
+                value="${esc(t.name)}"
+                placeholder="Nhập tên sự kiện">
 
         </div>
 
@@ -631,7 +693,7 @@ function editTask(id){
                 id="editTaskDate"
                 type="date"
                 class="input"
-                value="${(t.date||'24/09/2026').split('/').reverse().join('-')}">
+                value="${dateValue}">
 
         </div>
 
@@ -643,20 +705,28 @@ function editTask(id){
                 id="editTaskTime"
                 type="time"
                 class="input"
-                value="${t.time}">
+                value="${esc(t.time||'15:00')}">
 
         </div>
 
         <button
-            class="primary full"
+            type="button"
+            class="primary green full"
+            style="margin-top:15px"
             onclick="updateTask(${id})">
+
             Lưu thay đổi
+
         </button>
 
         <button
+            type="button"
             class="danger full"
+            style="margin-top:8px"
             onclick="removeTask(${id})">
-            Xóa công việc
+
+            Xóa sự kiện
+
         </button>
 
     `);
@@ -664,65 +734,95 @@ function editTask(id){
 
 function updateTask(id){
 
-    let t=data.tasks.find(x=>x.id===id);
+    const t=data.tasks.find(x=>x.id==id);
 
-    if(!t) return;
+    if(!t)
+        return toast('Không tìm thấy sự kiện');
 
-    t.name=
-        document.getElementById('editTaskName').value.trim()
-        ||t.name;
+    const name=
+        document
+        .getElementById('editTaskName')
+        ?.value
+        .trim();
 
-    t.time=
-        document.getElementById('editTaskTime').value
-        ||t.time;
+    const time=
+        document
+        .getElementById('editTaskTime')
+        ?.value;
 
-    let d=document.getElementById('editTaskDate').value;
+    const date=
+        document
+        .getElementById('editTaskDate')
+        ?.value;
 
-    if(d){
+    if(!name)
+        return toast('Nhập tên sự kiện');
 
-        let [y,m,day]=d.split('-');
+    if(!time)
+        return toast('Chọn thời gian');
 
-        t.date=`${day}/${m}/${y}`;
-    }
+    if(!date)
+        return toast('Chọn ngày');
+
+    const [y,m,d]=date.split('-');
+
+    t.name=name;
+    t.time=time;
+    t.date=`${d}/${m}/${y}`;
 
     save();
+
     closeSheet();
+
     render();
 
-    toast('Đã cập nhật công việc');
+    toast('Đã cập nhật sự kiện');
 }
 
 function removeTask(id){
 
-    if(!confirm('Xóa công việc này?'))
+    const t=data.tasks.find(x=>x.id==id);
+
+    if(!t)
+        return toast('Không tìm thấy sự kiện');
+
+    if(!confirm(`Xóa "${t.name}"?`))
         return;
 
-    data.tasks=data.tasks.filter(
-        t=>t.id!==id
-    );
+    data.tasks=
+        data.tasks.filter(
+            x=>x.id!=id
+        );
 
     save();
+
     closeSheet();
+
     render();
 
-    toast('Đã xóa công việc');
+    toast('Đã xóa sự kiện');
 }
 
 function filterTasks(){
 
-    let q=
-        document
-        .getElementById('searchTask')
-        .value
-        .toLowerCase();
+    const input=
+        document.getElementById('searchTask');
 
-    document
-        .getElementById('taskList')
-        .innerHTML=
+    const list=
+        document.getElementById('taskList');
 
+    if(!input||!list)
+        return;
+
+    let q=input.value.toLowerCase();
+
+    list.innerHTML=
         data.tasks
         .filter(
-            t=>t.name.toLowerCase().includes(q)
+            t=>
+                String(t.name)
+                .toLowerCase()
+                .includes(q)
         )
         .map(taskHTML)
         .join('');
@@ -730,13 +830,15 @@ function filterTasks(){
 
 function toggleTask(id){
 
-    let t=data.tasks.find(x=>x.id===id);
+    let t=data.tasks.find(x=>x.id==id);
 
-    if(!t) return;
+    if(!t)
+        return;
 
     t.done=!t.done;
 
     save();
+
     render();
 
     toast(
@@ -754,7 +856,11 @@ function taskModal(){
 
             <h3>Thêm công việc</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
@@ -771,6 +877,18 @@ function taskModal(){
 
         <div class="field">
 
+            <label>Ngày</label>
+
+            <input
+                id="taskDate"
+                type="date"
+                class="input"
+                value="${dateKey(selectedDate).split('/').reverse().join('-')}">
+
+        </div>
+
+        <div class="field">
+
             <label>Thời gian</label>
 
             <input
@@ -782,6 +900,7 @@ function taskModal(){
         </div>
 
         <button
+            type="button"
             class="primary full"
             style="margin-top:16px"
             onclick="addTask()">
@@ -798,11 +917,27 @@ function addTask(){
     let n=
         document
         .getElementById('taskName')
-        .value
+        ?.value
         .trim();
+
+    let time=
+        document
+        .getElementById('taskTime')
+        ?.value
+        ||'15:00';
+
+    let date=
+        document
+        .getElementById('taskDate')
+        ?.value;
 
     if(!n)
         return toast('Nhập tên công việc');
+
+    if(!date)
+        date=dateKey(selectedDate).split('/').reverse().join('-');
+
+    let [y,m,d]=date.split('-');
 
     data.tasks.push({
 
@@ -810,20 +945,20 @@ function addTask(){
 
         name:n,
 
-        time:
-            document
-            .getElementById('taskTime')
-            .value,
+        time,
 
-        date:dateKey(selectedDate),
+        date:`${d}/${m}/${y}`,
 
         done:false,
 
         cls:'blue'
+
     });
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã thêm công việc');
@@ -846,7 +981,11 @@ function timerPage(){
 
             <h1>Hẹn giờ</h1>
 
-            <button class="more">⋮</button>
+            <button
+                class="more"
+                type="button">
+                ⋮
+            </button>
 
         </div>
 
@@ -855,12 +994,14 @@ function timerPage(){
             <div class="timer-toggle">
 
                 <button
+                    type="button"
                     class="${timerMode==='countdown'?'active':''}"
                     onclick="setTimerMode('countdown')">
                     Đếm ngược
                 </button>
 
                 <button
+                    type="button"
                     class="${timerMode==='reminder'?'active':''}"
                     onclick="setTimerMode('reminder')">
                     Nhắc việc
@@ -929,10 +1070,10 @@ function timerCountdownForm(){
 
         <div class="quick-times">
 
-            <button onclick="setTimerPreset(5)">5 phút</button>
-            <button onclick="setTimerPreset(15)">15 phút</button>
-            <button onclick="setTimerPreset(25)">25 phút</button>
-            <button onclick="setTimerPreset(60)">1 giờ</button>
+            <button type="button" onclick="setTimerPreset(5)">5 phút</button>
+            <button type="button" onclick="setTimerPreset(15)">15 phút</button>
+            <button type="button" onclick="setTimerPreset(25)">25 phút</button>
+            <button type="button" onclick="setTimerPreset(60)">1 giờ</button>
 
         </div>
 
@@ -947,6 +1088,7 @@ function timerCountdownForm(){
             placeholder="Ví dụ: Tập trung học bài">
 
         <button
+            type="button"
             class="primary green full"
             style="margin-top:14px"
             onclick="startTimer()">
@@ -1004,6 +1146,7 @@ function timerReminderForm(){
             value="${time}">
 
         <button
+            type="button"
             class="primary green full"
             style="margin-top:14px"
             onclick="createReminder()">
@@ -1022,18 +1165,18 @@ function createReminder(){
     let name=
         document
         .getElementById('reminderTitle')
-        .value
+        ?.value
         .trim();
 
     let d=
         document
         .getElementById('reminderDate')
-        .value;
+        ?.value;
 
     let tm=
         document
         .getElementById('reminderTime')
-        .value;
+        ?.value;
 
     if(!name||!d||!tm)
         return toast(
@@ -1055,6 +1198,7 @@ function createReminder(){
         done:false,
 
         cls:'blue'
+
     });
 
     save();
@@ -1149,11 +1293,15 @@ function runningTimer(){
 
         <div class="top">
 
-            <button onclick="stopTimer()">×</button>
+            <button
+                type="button"
+                onclick="stopTimer()">
+                ×
+            </button>
 
             <h1>Hẹn giờ</h1>
 
-            <button>⚙</button>
+            <button type="button">⚙</button>
 
         </div>
 
@@ -1195,17 +1343,22 @@ function runningTimer(){
 
         <div class="run-actions">
 
-            <button onclick="resetTimer()">
+            <button
+                type="button"
+                onclick="resetTimer()">
                 ↻<br>Reset
             </button>
 
             <button
+                type="button"
                 class="pause"
                 onclick="pauseTimer()">
                 Ⅱ
             </button>
 
-            <button onclick="addMinute()">
+            <button
+                type="button"
+                onclick="addMinute()">
                 ＋<br>+1 phút
             </button>
 
@@ -1360,6 +1513,7 @@ function finance(){
 
                 <button
                     class="more"
+                    type="button"
                     onclick="toast('Tùy chọn tài chính')">
                     ⋮
                 </button>
@@ -1369,18 +1523,21 @@ function finance(){
             <div class="tabs finance-tabs">
 
                 <button
+                    type="button"
                     class="${financeTab==='overview'?'active':''}"
                     onclick="setFinanceTab('overview')">
                     Tổng quan
                 </button>
 
                 <button
+                    type="button"
                     class="${financeTab==='income'?'active':''}"
                     onclick="setFinanceTab('income')">
                     Thu / Chi
                 </button>
 
                 <button
+                    type="button"
                     class="${financeTab==='category'?'active':''}"
                     onclick="setFinanceTab('category')">
                     Danh mục
@@ -1429,7 +1586,9 @@ function financeOverview(){
 
         <h3>Các ví của tôi</h3>
 
-        <button onclick="walletList()">
+        <button
+            type="button"
+            onclick="walletList()">
             + Tạo ví
         </button>
 
@@ -1441,7 +1600,9 @@ function financeOverview(){
 
         <h3>Giao dịch gần đây</h3>
 
-        <button onclick="txList()">
+        <button
+            type="button"
+            onclick="txList()">
             Xem tất cả ›
         </button>
 
@@ -1456,6 +1617,7 @@ function financeOverview(){
     <div class="quick-grid">
 
         <button
+            type="button"
             class="quick"
             onclick="txModal('income')">
 
@@ -1466,6 +1628,7 @@ function financeOverview(){
         </button>
 
         <button
+            type="button"
             class="quick"
             onclick="txModal('expense')">
 
@@ -1476,6 +1639,7 @@ function financeOverview(){
         </button>
 
         <button
+            type="button"
             class="quick"
             onclick="transferModal()">
 
@@ -1486,6 +1650,7 @@ function financeOverview(){
         </button>
 
         <button
+            type="button"
             class="quick"
             onclick="stats()">
 
@@ -1542,7 +1707,9 @@ function financeIncome(){
 
         <h3>Giao dịch gần đây</h3>
 
-        <button onclick="txModal('income')">
+        <button
+            type="button"
+            onclick="txModal('income')">
             ＋ Thêm
         </button>
 
@@ -1558,7 +1725,9 @@ function financeCategory(){
 
         <h3>Danh mục chi tiêu</h3>
 
-        <button onclick="stats()">
+        <button
+            type="button"
+            onclick="stats()">
             Thống kê ›
         </button>
 
@@ -1596,6 +1765,11 @@ function financeCategory(){
     </div>`;
 }
 
+
+/* =========================
+   WALLET
+========================= */
+
 function walletRow(w){
 
     let pct=
@@ -1631,13 +1805,27 @@ function walletRow(w){
     </div>`;
 }
 
+
+/* =========================
+   GIAO DỊCH ROW
+   ĐÃ THÊM SỬA / XÓA
+========================= */
+
 function txRow(t){
+
+    let isTransfer=t.type==='transfer';
 
     return `
     <div class="tx-row">
 
         <div class="tx-icon">
-            ${t.type==='income'?'↗':'●'}
+            ${
+                t.type==='income'
+                ?'↗'
+                :t.type==='expense'
+                ?'●'
+                :'⇄'
+            }
         </div>
 
         <div class="tx-main">
@@ -1646,13 +1834,61 @@ function txRow(t){
 
             <small>
                 ${esc(wallet(t.wallet)?.name||'')}
-                · ${esc(t.cat)}
+                · ${esc(t.cat||'')}
+            </small>
+
+            <small>
+                ${esc(t.date||'')}
+                ${t.time?' · '+esc(t.time):''}
             </small>
 
         </div>
 
-        <div class="tx-amount ${t.type}">
-            ${t.type==='income'?'+':'-'}${money(t.amount)}
+        <div class="tx-right">
+
+            <div class="tx-amount ${t.type}">
+                ${
+                    t.type==='income'
+                    ?'+'
+                    :t.type==='expense'
+                    ?'-'
+                    :''
+                }${money(t.amount)}
+            </div>
+
+            ${
+                !isTransfer
+                ?
+                `<div class="tx-actions">
+
+                    <button
+                        type="button"
+                        class="tx-edit-btn"
+                        onclick="editTx(${t.id});event.stopPropagation()">
+                        Sửa
+                    </button>
+
+                    <button
+                        type="button"
+                        class="tx-delete-btn"
+                        onclick="deleteTx(${t.id});event.stopPropagation()">
+                        Xóa
+                    </button>
+
+                </div>`
+                :
+                `<div class="tx-actions">
+
+                    <button
+                        type="button"
+                        class="tx-delete-btn"
+                        onclick="deleteTransfer(${t.id});event.stopPropagation()">
+                        Xóa
+                    </button>
+
+                </div>`
+            }
+
         </div>
 
     </div>`;
@@ -1671,7 +1907,11 @@ function walletList(){
 
             <h3>Ví của tôi</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
@@ -1686,6 +1926,7 @@ function walletList(){
         ${data.wallets.map(walletRow).join('')}
 
         <button
+            type="button"
             class="primary full"
             style="margin-top:10px"
             onclick="closeSheet();walletModal()">
@@ -1703,7 +1944,11 @@ function walletModal(){
 
             <h3>Tạo ví mới</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
@@ -1723,10 +1968,10 @@ function walletModal(){
 
             <div class="quick-grid">
 
-                <button class="quick" onclick="pickIcon('🏦')">🏦</button>
-                <button class="quick" onclick="pickIcon('▣')">▣</button>
-                <button class="quick" onclick="pickIcon('▤')">▤</button>
-                <button class="quick" onclick="pickIcon('💳')">💳</button>
+                <button type="button" class="quick" onclick="pickIcon('🏦')">🏦</button>
+                <button type="button" class="quick" onclick="pickIcon('▣')">▣</button>
+                <button type="button" class="quick" onclick="pickIcon('▤')">▤</button>
+                <button type="button" class="quick" onclick="pickIcon('💳')">💳</button>
 
             </div>
 
@@ -1759,6 +2004,7 @@ function walletModal(){
         </div>
 
         <button
+            type="button"
             class="primary full"
             style="margin-top:15px"
             onclick="addWallet()">
@@ -1782,7 +2028,7 @@ function addWallet(){
     let n=
         document
         .getElementById('wname')
-        .value
+        ?.value
         .trim();
 
     if(!n)
@@ -1807,10 +2053,13 @@ function addWallet(){
         icon:picked,
 
         cls:'bank'
+
     });
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã tạo ví');
@@ -1820,17 +2069,22 @@ function walletDetail(id){
 
     let w=wallet(id);
 
-    if(!w) return;
+    if(!w)
+        return;
 
     openSheet(`
 
         <div class="close-row">
 
-            <button onclick="closeSheet()">‹</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ‹
+            </button>
 
             <h3>Quản lý ví</h3>
 
-            <button>⋮</button>
+            <button type="button">⋮</button>
 
         </div>
 
@@ -1850,6 +2104,7 @@ function walletDetail(id){
         <div class="icon-actions">
 
             <button
+                type="button"
                 class="icon-action"
                 onclick="editWallet(${id})">
 
@@ -1859,6 +2114,7 @@ function walletDetail(id){
             </button>
 
             <button
+                type="button"
                 class="icon-action"
                 onclick="txModal('income',${id})">
 
@@ -1868,6 +2124,7 @@ function walletDetail(id){
             </button>
 
             <button
+                type="button"
                 class="icon-action"
                 onclick="txModal('expense',${id})">
 
@@ -1877,6 +2134,7 @@ function walletDetail(id){
             </button>
 
             <button
+                type="button"
                 class="icon-action"
                 onclick="deleteWallet(${id})">
 
@@ -1903,6 +2161,7 @@ function walletDetail(id){
         }
 
         <button
+            type="button"
             class="primary full"
             onclick="closeSheet();txList()">
             ＋ Lịch sử giao dịch
@@ -1915,7 +2174,8 @@ function editWallet(id){
 
     let w=wallet(id);
 
-    if(!w) return;
+    if(!w)
+        return;
 
     openSheet(`
 
@@ -1923,7 +2183,11 @@ function editWallet(id){
 
             <h3>Sửa ví</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
@@ -1960,18 +2224,19 @@ function editWallet(id){
                     Thẻ tín dụng
                 </option>
 
-                <option ${
+                ${
                     ![
                         'Ví tiền mặt',
                         'Ví ngân hàng',
                         'Ví điện tử',
                         'Thẻ tín dụng'
                     ].includes(w.sub)
-                    ?'selected'
+                    ?`
+                    <option selected>
+                        ${esc(w.sub)}
+                    </option>`
                     :''
-                }>
-                    ${esc(w.sub)}
-                </option>
+                }
 
             </select>
 
@@ -1983,11 +2248,11 @@ function editWallet(id){
 
             <div class="quick-grid">
 
-                <button class="quick" onclick="setEditWalletIcon('🏦')">🏦</button>
-                <button class="quick" onclick="setEditWalletIcon('▣')">▣</button>
-                <button class="quick" onclick="setEditWalletIcon('▤')">▤</button>
-                <button class="quick" onclick="setEditWalletIcon('💳')">💳</button>
-                <button class="quick" onclick="setEditWalletIcon('💰')">💰</button>
+                <button type="button" class="quick" onclick="setEditWalletIcon('🏦')">🏦</button>
+                <button type="button" class="quick" onclick="setEditWalletIcon('▣')">▣</button>
+                <button type="button" class="quick" onclick="setEditWalletIcon('▤')">▤</button>
+                <button type="button" class="quick" onclick="setEditWalletIcon('💳')">💳</button>
+                <button type="button" class="quick" onclick="setEditWalletIcon('💰')">💰</button>
 
             </div>
 
@@ -1999,6 +2264,7 @@ function editWallet(id){
             value="${esc(w.icon)}">
 
         <button
+            type="button"
             class="primary full"
             style="margin-top:15px"
             onclick="saveWalletEdit(${id})">
@@ -2019,7 +2285,8 @@ function saveWalletEdit(id){
 
     let w=wallet(id);
 
-    if(!w) return;
+    if(!w)
+        return;
 
     let n=
         document
@@ -2040,10 +2307,13 @@ function saveWalletEdit(id){
     w.icon=
         document
         .getElementById('editWIcon')
-        .value||w.icon;
+        .value
+        ||w.icon;
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã cập nhật ví');
@@ -2063,7 +2333,9 @@ function deleteWallet(id){
         );
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã xóa ví');
@@ -2071,10 +2343,8 @@ function deleteWallet(id){
 
 
 /* =========================
-   TRANSACTIONS
+   THÊM GIAO DỊCH
 ========================= */
-
-let selectedWalletForTx=null;
 
 function txModal(type='expense',walletId=null){
 
@@ -2086,13 +2356,18 @@ function txModal(type='expense',walletId=null){
 
             <h3>Thêm giao dịch</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
         <div class="seg">
 
             <button
+                type="button"
                 id="incomeBtn"
                 class="${type==='income'?'active':''}"
                 onclick="setTxType('income')">
@@ -2100,6 +2375,7 @@ function txModal(type='expense',walletId=null){
             </button>
 
             <button
+                type="button"
                 id="expenseBtn"
                 class="${type==='expense'?'active':''}"
                 onclick="setTxType('expense')">
@@ -2190,6 +2466,7 @@ function txModal(type='expense',walletId=null){
         </div>
 
         <button
+            type="button"
             class="primary green full"
             style="margin-top:15px"
             onclick="saveTx()">
@@ -2290,14 +2567,22 @@ function saveTx(){
                     minute:'2-digit'
                 }
             )
+
     });
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã lưu giao dịch');
 }
+
+
+/* =========================
+   CHUYỂN TIỀN
+========================= */
 
 function transferModal(){
 
@@ -2307,7 +2592,11 @@ function transferModal(){
 
             <h3>Chuyển tiền giữa các ví</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
@@ -2373,6 +2662,7 @@ function transferModal(){
         </div>
 
         <button
+            type="button"
             class="primary full"
             style="margin-top:15px"
             onclick="doTransfer()">
@@ -2432,6 +2722,9 @@ function doTransfer(){
 
         wallet:from.id,
 
+        fromWallet:from.id,
+        toWallet:to.id,
+
         amount:a,
 
         date:'24/09/2026',
@@ -2445,13 +2738,386 @@ function doTransfer(){
                     minute:'2-digit'
                 }
             )
+
     });
 
     save();
+
     closeSheet();
+
     render();
 
     toast('Đã chuyển tiền');
+}
+
+
+/* =========================
+   SỬA GIAO DỊCH
+========================= */
+
+function editTx(id){
+
+    let t=data.transactions.find(x=>x.id==id);
+
+    if(!t)
+        return toast('Không tìm thấy giao dịch');
+
+    if(t.type==='transfer')
+        return toast('Giao dịch chuyển ví chưa hỗ trợ sửa');
+
+    openSheet(`
+
+        <div class="close-row">
+
+            <h3>Sửa giao dịch</h3>
+
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
+
+        </div>
+
+        <div class="seg">
+
+            <button
+                type="button"
+                id="editIncomeBtn"
+                class="${t.type==='income'?'active':''}"
+                onclick="setEditTxType('income')">
+                🟢 Thu
+            </button>
+
+            <button
+                type="button"
+                id="editExpenseBtn"
+                class="${t.type==='expense'?'active':''}"
+                onclick="setEditTxType('expense')">
+                🔴 Chi
+            </button>
+
+        </div>
+
+        <input
+            id="editTxType"
+            type="hidden"
+            value="${esc(t.type)}">
+
+        <div class="field">
+
+            <label>Số tiền</label>
+
+            <input
+                id="editTxAmount"
+                class="input"
+                type="number"
+                value="${Number(t.amount)||0}">
+
+        </div>
+
+        <div class="field">
+
+            <label>Danh mục</label>
+
+            <select id="editTxCat">
+
+                ${[
+                    'Ăn uống',
+                    'Đi lại',
+                    'Học tập',
+                    'Giải trí',
+                    'Khác',
+                    'Thu nhập'
+                ].map(c=>
+                    `<option
+                        ${t.cat===c?'selected':''}>
+                        ${c}
+                    </option>`
+                ).join('')}
+
+            </select>
+
+        </div>
+
+        <div class="field">
+
+            <label>Ví</label>
+
+            <select id="editTxWallet">
+
+                ${
+                    data.wallets.map(w=>
+                        `<option
+                            value="${w.id}"
+                            ${String(t.wallet)===String(w.id)?'selected':''}>
+                            ${esc(w.name)}
+                            · ${money(w.balance)}
+                        </option>`
+                    ).join('')
+                }
+
+            </select>
+
+        </div>
+
+        <div class="field">
+
+            <label>Ngày</label>
+
+            <input
+                id="editTxDate"
+                class="input"
+                value="${esc(t.date||'24/09/2026')}">
+
+        </div>
+
+        <div class="field">
+
+            <label>Ghi chú</label>
+
+            <textarea
+                id="editTxNote"
+                rows="3"
+                placeholder="Nhập ghi chú...">${esc(t.name||'')}</textarea>
+
+        </div>
+
+        <button
+            type="button"
+            class="primary green full"
+            style="margin-top:15px"
+            onclick="updateTx(${id})">
+
+            Lưu thay đổi
+
+        </button>
+
+        <button
+            type="button"
+            class="danger full"
+            style="margin-top:8px"
+            onclick="deleteTx(${id})">
+
+            Xóa giao dịch
+
+        </button>
+
+    `);
+}
+
+function setEditTxType(type){
+
+    document.getElementById('editTxType').value=type;
+
+    document
+        .getElementById('editIncomeBtn')
+        .classList
+        .toggle('active',type==='income');
+
+    document
+        .getElementById('editExpenseBtn')
+        .classList
+        .toggle('active',type==='expense');
+}
+
+function updateTx(id){
+
+    let t=data.transactions.find(x=>x.id==id);
+
+    if(!t)
+        return toast('Không tìm thấy giao dịch');
+
+    let oldWallet=wallet(t.wallet);
+
+    let oldAmount=Number(t.amount)||0;
+
+    if(!oldWallet)
+        return toast('Không tìm thấy ví cũ');
+
+    /* Hoàn lại ảnh hưởng cũ */
+
+    if(t.type==='income')
+        oldWallet.balance-=oldAmount;
+    else
+        oldWallet.balance+=oldAmount;
+
+    let type=
+        document
+        .getElementById('editTxType')
+        .value;
+
+    let amount=
+        +document
+        .getElementById('editTxAmount')
+        .value||0;
+
+    let newWallet=
+        wallet(
+            document
+            .getElementById('editTxWallet')
+            .value
+        );
+
+    let cat=
+        document
+        .getElementById('editTxCat')
+        .value;
+
+    let date=
+        document
+        .getElementById('editTxDate')
+        .value
+        .trim()
+        ||t.date;
+
+    let note=
+        document
+        .getElementById('editTxNote')
+        .value
+        .trim()
+        ||cat;
+
+    if(!amount){
+
+        /* hoàn lại dữ liệu cũ */
+
+        if(t.type==='income')
+            oldWallet.balance+=oldAmount;
+        else
+            oldWallet.balance-=oldAmount;
+
+        return toast('Nhập số tiền');
+    }
+
+    if(!newWallet){
+
+        if(t.type==='income')
+            oldWallet.balance+=oldAmount;
+        else
+            oldWallet.balance-=oldAmount;
+
+        return toast('Không tìm thấy ví mới');
+    }
+
+    /* Kiểm tra số dư nếu chuyển sang chi */
+
+    if(
+        type==='expense' &&
+        newWallet.balance<amount
+    ){
+
+        if(t.type==='income')
+            oldWallet.balance+=oldAmount;
+        else
+            oldWallet.balance-=oldAmount;
+
+        return toast('Số dư ví mới không đủ');
+    }
+
+    /* Áp dụng giao dịch mới */
+
+    if(type==='income')
+        newWallet.balance+=amount;
+    else
+        newWallet.balance-=amount;
+
+    t.type=type;
+    t.amount=amount;
+    t.wallet=newWallet.id;
+    t.cat=cat;
+    t.name=note;
+    t.date=date;
+
+    save();
+
+    closeSheet();
+
+    render();
+
+    toast('Đã cập nhật giao dịch');
+}
+
+function deleteTx(id){
+
+    let t=data.transactions.find(x=>x.id==id);
+
+    if(!t)
+        return toast('Không tìm thấy giao dịch');
+
+    if(t.type==='transfer')
+        return deleteTransfer(id);
+
+    if(!confirm(`Xóa giao dịch "${t.name}"?`))
+        return;
+
+    let w=wallet(t.wallet);
+
+    if(w){
+
+        if(t.type==='income')
+            w.balance-=Number(t.amount)||0;
+        else
+            w.balance+=Number(t.amount)||0;
+
+    }
+
+    data.transactions=
+        data.transactions.filter(
+            x=>x.id!=id
+        );
+
+    save();
+
+    closeSheet();
+
+    render();
+
+    toast('Đã xóa giao dịch');
+}
+
+
+/* =========================
+   XÓA CHUYỂN TIỀN
+========================= */
+
+function deleteTransfer(id){
+
+    let t=data.transactions.find(x=>x.id==id);
+
+    if(!t)
+        return toast('Không tìm thấy giao dịch');
+
+    if(t.type!=='transfer')
+        return deleteTx(id);
+
+    if(!confirm(`Xóa giao dịch "${t.name}"?`))
+        return;
+
+    let from=
+        wallet(t.fromWallet||t.wallet);
+
+    let to=
+        wallet(t.toWallet);
+
+    if(from)
+        from.balance+=Number(t.amount)||0;
+
+    if(to)
+        to.balance-=Number(t.amount)||0;
+
+    data.transactions=
+        data.transactions.filter(
+            x=>x.id!=id
+        );
+
+    save();
+
+    closeSheet();
+
+    render();
+
+    toast('Đã xóa giao dịch chuyển ví');
 }
 
 
@@ -2467,24 +3133,31 @@ function txList(){
 
             <h3>Lịch sử giao dịch</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
         <div class="tabs">
 
             <button
+                type="button"
                 class="active"
                 onclick="filterTx('all',this)">
                 Tất cả
             </button>
 
             <button
+                type="button"
                 onclick="filterTx('income',this)">
                 Thu
             </button>
 
             <button
+                type="button"
                 onclick="filterTx('expense',this)">
                 Chi
             </button>
@@ -2536,19 +3209,25 @@ function stats(){
 
             <h3>Thống kê chi tiêu</h3>
 
-            <button onclick="closeSheet()">×</button>
+            <button
+                type="button"
+                onclick="closeSheet()">
+                ×
+            </button>
 
         </div>
 
         <div class="subtabs">
 
             <button
+                type="button"
                 class="${statsTab==='category'?'active':''}"
                 onclick="setStatsTab('category')">
                 Theo danh mục
             </button>
 
             <button
+                type="button"
                 class="${statsTab==='wallet'?'active':''}"
                 onclick="setStatsTab('wallet')">
                 Theo ví
@@ -2693,6 +3372,7 @@ function statsByWallet(){
                 rows.map(
                     ([w,n])=>
                     `<button
+                        type="button"
                         class="bar-row"
                         onclick="walletDetail(${w.id})">
 
@@ -2802,6 +3482,7 @@ function settings(){
             </div>
 
             <button
+                type="button"
                 class="switch ${data.settings.notify?'on':''}"
                 onclick="toggleSetting('notify')">
 
@@ -2819,8 +3500,12 @@ function settings(){
                 <b>Giao diện</b>
             </div>
 
-            <button onclick="toggleSetting('dark')">
+            <button
+                type="button"
+                onclick="toggleSetting('dark')">
+
                 ${data.settings.dark?'Tối':'Sáng'}　›
+
             </button>
 
         </div>
@@ -2911,6 +3596,7 @@ async function toggleSetting(k){
     data.settings[k]=!data.settings[k];
 
     save();
+
     render();
 
     toast(
@@ -3024,7 +3710,8 @@ function toast(t){
     let x=
         document.getElementById('toast');
 
-    if(!x) return;
+    if(!x)
+        return;
 
     x.textContent=t;
 
